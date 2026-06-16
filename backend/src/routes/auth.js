@@ -17,6 +17,8 @@ router.post('/login',
 
     const { username, password } = req.body;
 
+    console.log(`[LOGIN] Attempt for username: "${username}"`);
+
     try {
       // Check users table
       const { data: users, error } = await supabase
@@ -26,14 +28,21 @@ router.post('/login',
         .eq('active', true)
         .limit(1);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[LOGIN] Supabase query error:', error.message);
+        throw error;
+      }
+
+      console.log(`[LOGIN] Users found: ${users?.length || 0}`);
 
       const user = users?.[0];
       if (!user) {
+        console.log(`[LOGIN] No active user found for "${username}"`);
         return res.status(401).json({ error: 'Invalid username or password' });
       }
 
       const validPassword = await bcrypt.compare(password, user.password_hash);
+      console.log(`[LOGIN] Password valid: ${validPassword}`);
       if (!validPassword) {
         await auditLog(user.id, username, 'Failed login attempt', 'login', 'Wrong password');
         return res.status(401).json({ error: 'Invalid username or password' });
