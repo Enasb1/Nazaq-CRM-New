@@ -542,7 +542,7 @@ const DEFAULT_CALL_FIELDS = [
 // ══════════════════════════════════════════
 // API CONFIG
 // ══════════════════════════════════════════
-const API_BASE = 'https://nazaq.org';
+const API_BASE = '';
 let authToken = null;
 
 async function api(method, path, body){
@@ -1428,7 +1428,10 @@ function renderAll(){
   if(document.getElementById('page-semesters').classList.contains('active')) renderSemesters();
 }
 
-document.querySelector(".lang-btn[onclick=\"setLang('he')\"]").classList.add('active');
+// Set initial active language button (robust against quote-matching issues)
+document.querySelectorAll('.lang-btn').forEach(btn=>{
+  if(btn.getAttribute('onclick')==="setLang('he')") btn.classList.add('active');
+});
 </script>
 </body>
 </html>
