@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>NazAQ — Call Monitor</title>
+<style>
+:root{
+  --yellow:#F5C518;--yellow-dark:#D4A017;
+  --bg:#0F0F0F;--surface:#1A1A1A;--surface2:#242424;--border:#333;
+  --text:#F0F0F0;--text2:#A0A0A0;--text3:#555;
+  --green:#2ECC71;--green-bg:rgba(46,204,113,.12);
+  --red:#E74C3C;--red-bg:rgba(231,76,60,.12);
+  --blue:#3498DB;--orange:#E67E22;
+  --font:'Segoe UI',sans-serif;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;}
+
+/* SCREENS */
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* LOGIN */
+#screen-login{align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 30% 40%,#1A1400,#0F0F0F);}
+.login-card{background:var(--surface);border-radius:20px;padding:40px 28px;width:100%;max-width:360px;text-align:center;}
+.app-logo{width:72px;height:72px;background:var(--yellow);border-radius:18px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#111;}
+.app-title{font-size:22px;font-weight:800;margin-bottom:4px;}
+.app-sub{color:var(--text2);font-size:13px;margin-bottom:28px;}
+.input-group{margin-bottom:14px;text-align:right;}
+.input-group label{display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+.input-group input{width:100%;padding:13px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none;font-family:var(--font);}
+.input-group input:focus{border-color:var(--yellow);}
+.btn-login{width:100%;padding:14px;background:var(--yellow);border:none;border-radius:var(--radius);font-size:16px;font-weight:800;color:#111;cursor:pointer;margin-top:6px;}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;}
+.server-row{display:flex;gap:8px;align-items:flex-end;}
+.server-row .input-group{flex:1;margin-bottom:0;}
+.server-btn{padding:13px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;cursor:pointer;white-space:nowrap;}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
+.topbar-logo{width:34px;height:34px;background:var(--yellow);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#111;flex-shrink:0;}
+.topbar-title{font-size:16px;font-weight:700;flex:1;}
+.topbar-status{font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700;}
+.topbar-status.monitoring{background:var(--green-bg);color:var(--green);}
+.topbar-status.offline{background:var(--red-bg);color:var(--red);}
+.icon-btn{width:36px;height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;}
+
+/* MAIN CONTENT */
+.main{flex:1;padding:16px;overflow-y:auto;}
+.section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;}
+
+/* CALL POP-UP */
+#call-popup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;align-items:flex-end;justify-content:center;padding:0;}
+#call-popup.open{display:flex;}
+.call-sheet{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:24px 20px;}
+.call-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+.call-number{font-size:28px;font-weight:800;text-align:center;margin-bottom:4px;letter-spacing:1px;}
+.call-direction{text-align:center;font-size:13px;color:var(--text2);margin-bottom:20px;}
+.call-duration{text-align:center;font-size:20px;font-weight:700;color:var(--yellow);margin-bottom:20px;}
+
+/* FORM ELEMENTS */
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px;}
+.form-input,.form-select,.form-textarea{width:100%;padding:12px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;font-family:var(--font);outline:none;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--yellow);}
+.form-textarea{resize:none;height:80px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* BUTTONS */
+.btn{width:100%;padding:14px;border-radius:var(--radius);font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);transition:opacity .2s;}
+.btn:active{opacity:.8;}
+.btn-primary{background:var(--yellow);color:#111;margin-bottom:10px;}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* CALL HISTORY */
+.call-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+.call-card-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.call-direction-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.dir-in{background:var(--green-bg);color:var(--green);}
+.dir-out{background:rgba(52,152,219,.12);color:var(--blue);}
+.call-number-text{font-size:16px;font-weight:700;}
+.call-time{font-size:12px;color:var(--text2);}
+.call-dur{font-size:12px;color:var(--text3);margin-left:auto;}
+.call-notes{font-size:13px;color:var(--text2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);}
+.call-tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.tag{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600;}
+.tag-new{background:rgba(155,89,182,.15);color:#9B59B6;}
+.tag-existing{background:var(--green-bg);color:var(--green);}
+.tag-saved{background:rgba(52,152,219,.15);color:var(--blue);}
+.tag-pending{background:rgba(231,76,60,.15);color:var(--red);}
+
+/* SETTINGS */
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.settings-label{font-size:15px;}
+.settings-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.toggle{width:48px;height:26px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--yellow);}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:white;border-radius:50%;transition:left .2s;}
+.toggle.on::after{left:25px;}
+
+/* BADGE */
+.badge-count{background:var(--red);color:white;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center;}
+
+/* BOTTOM NAV */
+.bottom-nav{background:var(--surface);border-top:1px solid var(--border);display:flex;padding:8px 0 env(safe-area-inset-bottom, 8px);}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px;cursor:pointer;font-size:11px;color:var(--text2);font-weight:600;}
+.nav-item.active{color:var(--yellow);}
+.nav-icon{font-size:22px;line-height:1;}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:44px;margin-bottom:12px;opacity:.3;}
+
+/* SYNC INDICATOR */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;}
+.sync-dot.syncing{animation:blink .8s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ LOGIN ══════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <div class="app-logo">Nz.</div>
+    <div class="app-title">NazAQ</div>
+    <div class="app-sub">Call Monitor</div>
+    <div class="server-row" style="margin-bottom:14px">
+      <div class="input-group">
+        <label>Server URL</label>
+        <input type="url" id="server-url" placeholder="https://your-api.railway.app"/>
+      </div>
+      <button class="server-btn" onclick="testConnection()">בדיקה</button>
+    </div>
+    <div class="input-group">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-login" onclick="doLogin()">🔓 Login</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ MAIN APP ══════════════════ -->
+<div id="screen-app" class="screen">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">Nz.</div>
+    <div style="flex:1">
+      <div class="topbar-title">NazAQ Monitor</div>
+    </div>
+    <div class="topbar-status monitoring" id="monitor-status">● מנטר</div>
+    <div class="icon-btn" onclick="showTab('settings')">⚙️</div>
+  </div>
+
+  <!-- TAB: RECENT CALLS -->
+  <div id="tab-recent" class="main">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="section-title">שיחות אחרונות</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-label">מסונכרן</span>
+      </div>
+    </div>
+    <div id="calls-list">
+      <div class="empty"><div class="empty-icon">📞</div><div>עוד לא נוטרו שיחות</div><div style="font-size:12px;margin-top:8px;color:var(--text3)">השיחה הבאה תופיע כאן אוטומטית</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: PENDING -->
+  <div id="tab-pending" class="main" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="section-title">ממתינות לשמירה</div>
+      <span class="badge-count" id="pending-count">0</span>
+    </div>
+    <div id="pending-list">
+      <div class="empty"><div class="empty-icon">✅</div><div>אין שיחות ממתינות</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: SETTINGS -->
+  <div id="tab-settings" class="main" style="display:none">
+    <div class="section-title" style="margin-bottom:16px">הגדרות</div>
+    <div class="settings-item">
+      <div><div class="settings-label">ניטור שיחות</div><div class="settings-sub">זהה ותעד שיחות נכנסות ויוצאות</div></div>
+      <div class="toggle on" id="toggle-monitor" onclick="toggleMonitor()"></div>
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">פתיחה אוטומטית</div><div class="settings-sub">פתח טופס בסיום כל שיחה</div></div>
+      <div class="toggle on" id="toggle-auto" onclick="toggleAuto()"></div>
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">שמור ללא אינטרנט</div><div class="settings-sub">שיחות ישמרו מקומית ויסונכרנו מאוחר</div></div>
+      <div class="toggle on" id="toggle-offline" onclick="toggleOffline()"></div>
+    </div>
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label">שרת</div><div class="settings-sub" id="server-display"></div></div>
+      <button style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:12px;cursor:pointer" onclick="doLogout()">התנתק</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-recent" onclick="showTab('recent')">
+      <div class="nav-icon">📋</div>שיחות
+    </div>
+    <div class="nav-item" id="nav-pending" onclick="showTab('pending')">
+      <div class="nav-icon">⏳</div>ממתינות
+      <span class="badge-count" id="pending-nav-count" style="display:none">0</span>
+    </div>
+    <div class="nav-item" id="nav-settings" onclick="showTab('settings')">
+      <div class="nav-icon">⚙️</div>הגדרות
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ CALL POPUP ══════════════════ -->
+<div id="call-popup">
+  <div class="call-sheet">
+    <div class="call-sheet-handle"></div>
+    <div class="call-number" id="popup-number"></div>
+    <div class="call-direction" id="popup-direction"></div>
+    <div class="call-duration" id="popup-duration"></div>
+
+    <!-- Student lookup result -->
+    <div id="student-lookup" style="margin-bottom:16px"></div>
+
+    <!-- Quick form -->
+    <div class="form-group">
+      <label class="form-label">שם התלמיד (אם ידוע)</label>
+      <div class="form-row">
+        <input type="text" class="form-input" id="popup-fname" placeholder="שם פרטי"/>
+        <input type="text" class="form-input" id="popup-lname" placeholder="שם משפחה"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">פרטי השיחה</label>
+      <textarea class="form-textarea" id="popup-details" placeholder="מה דובר בשיחה?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">מעקב נדרש?</label>
+      <select class="form-select" id="popup-followup">
+        <option value="no">לא</option>
+        <option value="yes">כן — קבע תאריך</option>
+      </select>
+    </div>
+    <div class="form-group" id="followup-date-group" style="display:none">
+      <label class="form-label">תאריך מעקב</label>
+      <input type="date" class="form-input" id="popup-followup-date"/>
+    </div>
+
+    <div id="save-options" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveCallAndNewStudent()">💾 שמור + תלמיד חדש</button>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="saveCallOnly()">שמור שיחה בלבד</button>
+        <button class="btn btn-secondary" onclick="dismissPopup()">בטל</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── STATE ────────────────────────────────────────────────
+let authToken = null;
+let serverUrl = '';
+let settings = { monitor: true, autoOpen: true, offlineMode: true };
+let recentCalls = [];
+let pendingCalls = [];
+let currentCallData = null;
+let currentCallStart = null;
+let callTimerInterval = null;
+
+// ── STORAGE ──────────────────────────────────────────────
+function save(key, val) { localStorage.setItem('nazaq_' + key, JSON.stringify(val)); }
+function load(key, def) { try { return JSON.parse(localStorage.getItem('nazaq_' + key)) ?? def; } catch { return def; } }
+
+function init() {
+  authToken = load('token', null);
+  serverUrl = load('server', '');
+  settings = load('settings', settings);
+  recentCalls = load('recent_calls', []);
+  pendingCalls = load('pending_calls', []);
+  document.getElementById('server-url').value = serverUrl;
+  applySettings();
+  if (authToken && serverUrl) {
+    showScreen('app');
+    document.getElementById('server-display').textContent = serverUrl;
+    renderRecentCalls();
+    renderPendingCalls();
+    // Try to sync pending calls on startup
+    syncPending();
+  }
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+async function testConnection() {
+  const url = document.getElementById('server-url').value.trim();
+  if (!url) return;
+  try {
+    const r = await fetch(url + '/health');
+    const j = await r.json();
+    alert(j.status === 'ok' ? '✅ חיבור תקין!' : '⚠️ שרת מגיב אבל לא תקין');
+  } catch {
+    alert('❌ לא ניתן להתחבר לשרת. בדוק את ה-URL.');
+  }
+}
+
+async function doLogin() {
+  const url = document.getElementById('server-url').value.trim();
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (!url || !username || !password) { errEl.textContent = '⚠️ מלא את כל השדות'; return; }
+  try {
+    const r = await fetch(url + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const j = await r.json();
+    if (!r.ok) { errEl.textContent = '❌ ' + (j.error || 'שגיאת כניסה'); return; }
+    authToken = j.token;
+    serverUrl = url;
+    save('token', authToken);
+    save('server', serverUrl);
+    showScreen('app');
+    document.getElementById('server-display').textContent = serverUrl;
+    renderRecentCalls();
+  } catch {
+    errEl.textContent = '❌ שגיאת חיבור — בדוק את ה-URL';
+  }
+}
+
+function doLogout() {
+  authToken = null;
+  save('token', null);
+  showScreen('login');
+}
+
+// ── API CALLS ────────────────────────────────────────────
+async function apiPost(path, body) {
+  const r = await fetch(serverUrl + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+    body: JSON.stringify(body)
+  });
+  if (r.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  return r.json();
+}
+
+async function apiGet(path) {
+  const r = await fetch(serverUrl + path, {
+    headers: { 'Authorization': 'Bearer ' + authToken }
+  });
+  if (r.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  return r.json();
+}
+
+// ── CALL DETECTION (Native Android via Capacitor plugins) ─
+// In the real APK, this is replaced by the Capacitor Phone Call plugin.
+// For browser testing, we simulate with a button.
+// When the native plugin fires, it calls: onCallDetected(number, direction)
+// and onCallEnded(number, direction, durationSeconds)
+
+function onCallDetected(number, direction) {
+  currentCallStart = Date.now();
+  currentCallData = { phone: number, direction, start: new Date().toISOString() };
+  // Look up if student exists
+  lookupStudent(number);
+  // Start timer
+  if (callTimerInterval) clearInterval(callTimerInterval);
+  callTimerInterval = setInterval(updateCallTimer, 1000);
+  // Update monitor status
+  document.getElementById('monitor-status').textContent = direction === 'incoming' ? '📲 שיחה נכנסת' : '📱 שיחה יוצאת';
+  document.getElementById('monitor-status').style.color = '#F5C518';
+}
+
+function onCallEnded(number, direction, durationSeconds) {
+  if (callTimerInterval) clearInterval(callTimerInterval);
+  const duration = durationSeconds || Math.round((Date.now() - (currentCallStart || Date.now())) / 1000);
+  currentCallData = { ...currentCallData, phone: number, direction, duration_seconds: duration };
+  document.getElementById('monitor-status').textContent = '● מנטר';
+  document.getElementById('monitor-status').style.color = '';
+  if (settings.autoOpen && duration > 3) {
+    openCallPopup(number, direction, duration);
+  } else {
+    // Auto-save minimal record if call was too short or autoOpen is off
+    if (duration > 3) autoSaveMinimalCall(number, direction, duration);
+  }
+}
+
+async function lookupStudent(phone) {
+  const lookupEl = document.getElementById('student-lookup');
+  lookupEl.innerHTML = '<div style="font-size:12px;color:var(--text2)">🔍 מחפש תלמיד...</div>';
+  try {
+    const data = await apiGet(`/api/students?search=${encodeURIComponent(phone)}`);
+    const match = data.data?.[0];
+    if (match) {
+      currentCallData.student_id = match.id;
+      currentCallData.fname = match.fname;
+      currentCallData.lname = match.lname;
+      document.getElementById('popup-fname').value = match.fname || '';
+      document.getElementById('popup-lname').value = match.lname || '';
+      lookupEl.innerHTML = `<div style="background:var(--green-bg);border:1px solid rgba(46,204,113,.3);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--green)">✅ תלמיד קיים: <strong>${match.fname} ${match.lname||''}</strong> — ${STATUS_HE[match.status]||match.status}</div>`;
+    } else {
+      lookupEl.innerHTML = `<div style="background:rgba(52,152,219,.1);border:1px solid rgba(52,152,219,.3);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--blue)">📋 מספר לא מוכר — יווצר תלמיד חדש בשמירה</div>`;
+    }
+  } catch {
+    lookupEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">לא ניתן לחפש (אין חיבור)</div>';
+  }
+}
+
+const STATUS_HE = { new:'חדש', contacted:'יצרנו קשר', callback:'ממתין לחזרה', notinterested:'לא מעוניין', registered:'נרשם' };
+
+function updateCallTimer() {
+  const elapsed = Math.round((Date.now() - currentCallStart) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2,'0');
+  const s = (elapsed % 60).toString().padStart(2,'0');
+  document.getElementById('popup-duration').textContent = m + ':' + s;
+}
+
+function openCallPopup(number, direction, duration) {
+  document.getElementById('popup-number').textContent = number || 'מספר לא ידוע';
+  document.getElementById('popup-direction').textContent = direction === 'incoming' ? '📲 שיחה נכנסת' : '📱 שיחה יוצאת';
+  const m = Math.floor(duration/60).toString().padStart(2,'0');
+  const s = (duration%60).toString().padStart(2,'0');
+  document.getElementById('popup-duration').textContent = `משך: ${m}:${s}`;
+  document.getElementById('popup-fname').value = currentCallData?.fname || '';
+  document.getElementById('popup-lname').value = currentCallData?.lname || '';
+  document.getElementById('popup-details').value = '';
+  document.getElementById('popup-followup').value = 'no';
+  document.getElementById('followup-date-group').style.display = 'none';
+  document.getElementById('call-popup').classList.add('open');
+}
+
+function dismissPopup() {
+  document.getElementById('call-popup').classList.remove('open');
+  // Auto-save minimal record
+  if (currentCallData) {
+    autoSaveMinimalCall(currentCallData.phone, currentCallData.direction, currentCallData.duration_seconds);
+  }
+}
+
+async function saveCallOnly() {
+  const callRecord = buildCallRecord();
+  await saveCallRecord(callRecord);
+  document.getElementById('call-popup').classList.remove('open');
+}
+
+async function saveCallAndNewStudent() {
+  const fname = document.getElementById('popup-fname').value.trim();
+  const lname = document.getElementById('popup-lname').value.trim();
+  const callRecord = buildCallRecord();
+  // If no existing student and we have a name or just the phone, create student
+  if (!currentCallData?.student_id) {
+    const studentData = {
+      fname: fname || 'לא ידוע',
+      lname: lname || '',
+      phone1: currentCallData?.phone || '',
+      status: 'new',
+      notes: 'נוצר אוטומטית ממשת הניטור'
+    };
+    try {
+      const newStudent = await apiPost('/api/students', studentData);
+      if (newStudent?.id) {
+        callRecord.student_id = newStudent.id;
+        callRecord.fname = newStudent.fname;
+        callRecord.lname = newStudent.lname;
+      }
+    } catch (e) {
+      // Queue for later
+      pendingCalls.push({ type: 'student', data: studentData, callRecord });
+      save('pending_calls', pendingCalls);
+      updatePendingBadge();
+    }
+  }
+  await saveCallRecord(callRecord);
+  document.getElementById('call-popup').classList.remove('open');
+}
+
+function buildCallRecord() {
+  const followup = document.getElementById('popup-followup').value;
+  return {
+    student_id: currentCallData?.student_id || null,
+    fname: document.getElementById('popup-fname').value.trim() || currentCallData?.fname || '',
+    lname: document.getElementById('popup-lname').value.trim() || currentCallData?.lname || '',
+    phone: currentCallData?.phone || '',
+    datetime: currentCallData?.start || new Date().toISOString(),
+    direction: currentCallData?.direction === 'incoming' ? 'received' : 'initiated',
+    details: document.getElementById('popup-details').value.trim(),
+    followup,
+    followup_date: followup === 'yes' ? document.getElementById('popup-followup-date').value : '',
+    duration_seconds: currentCallData?.duration_seconds || 0,
+    auto_detected: true
+  };
+}
+
+async function autoSaveMinimalCall(phone, direction, duration) {
+  const callRecord = {
+    phone: phone || '',
+    fname: currentCallData?.fname || '',
+    lname: currentCallData?.lname || '',
+    student_id: currentCallData?.student_id || null,
+    datetime: currentCallData?.start || new Date().toISOString(),
+    direction: direction === 'incoming' ? 'received' : 'initiated',
+    duration_seconds: duration || 0,
+    auto_detected: true,
+    details: '',
+    followup: 'no'
+  };
+  await saveCallRecord(callRecord);
+}
+
+async function saveCallRecord(callRecord) {
+  setSyncStatus('syncing');
+  try {
+    const saved = await apiPost('/api/calls', callRecord);
+    callRecord._saved = true;
+    callRecord._id = saved.id;
+    recentCalls.unshift(callRecord);
+    if (recentCalls.length > 50) recentCalls = recentCalls.slice(0, 50);
+    save('recent_calls', recentCalls);
+    renderRecentCalls();
+    setSyncStatus('ok');
+  } catch {
+    callRecord._saved = false;
+    recentCalls.unshift(callRecord);
+    save('recent_calls', recentCalls);
+    if (settings.offlineMode) {
+      pendingCalls.push(callRecord);
+      save('pending_calls', pendingCalls);
+      updatePendingBadge();
+    }
+    renderRecentCalls();
+    setSyncStatus('error');
+  }
+}
+
+async function syncPending() {
+  if (!pendingCalls.length || !authToken) return;
+  setSyncStatus('syncing');
+  const failed = [];
+  for (const call of pendingCalls) {
+    try {
+      await apiPost('/api/calls', call);
+    } catch {
+      failed.push(call);
+    }
+  }
+  pendingCalls = failed;
+  save('pending_calls', pendingCalls);
+  updatePendingBadge();
+  renderPendingCalls();
+  setSyncStatus(failed.length ? 'error' : 'ok');
+}
+
+// ── UI HELPERS ────────────────────────────────────────────
+function renderRecentCalls() {
+  const el = document.getElementById('calls-list');
+  if (!recentCalls.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📞</div><div>עוד לא נוטרו שיחות</div></div>';
+    return;
+  }
+  el.innerHTML = recentCalls.slice(0, 30).map(c => {
+    const dirIn = c.direction === 'received' || c.direction === 'incoming';
+    const dur = c.duration_seconds ? `${Math.floor(c.duration_seconds/60)}:${(c.duration_seconds%60).toString().padStart(2,'0')}` : '';
+    const time = c.datetime ? new Date(c.datetime).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="call-card">
+      <div class="call-card-header">
+        <div class="call-direction-icon ${dirIn?'dir-in':'dir-out'}">${dirIn?'📲':'📱'}</div>
+        <div style="flex:1">
+          <div class="call-number-text">${c.fname||c.phone||'לא ידוע'} ${c.lname||''}</div>
+          <div class="call-time">${c.phone||''} · ${time}</div>
+        </div>
+        ${dur?`<div class="call-dur">${dur}</div>`:''}
+      </div>
+      ${c.details?`<div class="call-notes">${c.details}</div>`:''}
+      <div class="call-tags">
+        ${c.student_id?'<span class="tag tag-existing">תלמיד קיים</span>':'<span class="tag tag-new">חדש</span>'}
+        ${c._saved?'<span class="tag tag-saved">✓ נשמר</span>':'<span class="tag tag-pending">⏳ ממתין</span>'}
+        ${c.followup==='yes'?'<span class="tag" style="background:rgba(231,126,34,.15);color:#E67E22">📅 מעקב</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPendingCalls() {
+  const el = document.getElementById('pending-list');
+  if (!pendingCalls.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div>אין שיחות ממתינות</div></div>';
+    return;
+  }
+  el.innerHTML = `<button class="btn btn-primary" onclick="syncPending()" style="margin-bottom:14px">🔄 סנכרן עכשיו (${pendingCalls.length})</button>` +
+    pendingCalls.map(c => `<div class="call-card"><div class="call-number-text">${c.phone||'לא ידוע'}</div><div class="call-time">${c.datetime?.substring(0,16)||''}</div></div>`).join('');
+}
+
+function updatePendingBadge() {
+  const n = pendingCalls.length;
+  document.getElementById('pending-count').textContent = n;
+  const navBadge = document.getElementById('pending-nav-count');
+  navBadge.textContent = n;
+  navBadge.style.display = n ? 'inline' : 'none';
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  label.textContent = state === 'syncing' ? 'מסנכרן...' : state === 'error' ? 'שגיאת חיבור' : 'מסונכרן';
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function showTab(name) {
+  ['recent','pending','settings'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    document.getElementById('nav-' + t)?.classList.toggle('active', t === name);
+  });
+}
+
+function applySettings() {
+  document.getElementById('toggle-monitor').classList.toggle('on', settings.monitor);
+  document.getElementById('toggle-auto').classList.toggle('on', settings.autoOpen);
+  document.getElementById('toggle-offline').classList.toggle('on', settings.offlineMode);
+}
+function toggleMonitor() { settings.monitor = !settings.monitor; save('settings', settings); applySettings(); }
+function toggleAuto() { settings.autoOpen = !settings.autoOpen; save('settings', settings); applySettings(); }
+function toggleOffline() { settings.offlineMode = !settings.offlineMode; save('settings', settings); applySettings(); }
+
+document.getElementById('popup-followup').addEventListener('change', function() {
+  document.getElementById('followup-date-group').style.display = this.value === 'yes' ? 'block' : 'none';
+});
+
+// ── SIMULATE CALL (for browser testing) ──────────────────
+// In production APK this is removed and replaced by native Capacitor plugin
+window.simulateIncomingCall = function(num) {
+  num = num || '052-' + Math.floor(Math.random()*9000000+1000000);
+  onCallDetected(num, 'incoming');
+  setTimeout(() => onCallEnded(num, 'incoming', 85 + Math.floor(Math.random()*120)), 2000);
+};
+window.simulateOutgoingCall = function(num) {
+  num = num || '054-' + Math.floor(Math.random()*9000000+1000000);
+  onCallDetected(num, 'outgoing');
+  setTimeout(() => onCallEnded(num, 'outgoing', 45 + Math.floor(Math.random()*60)), 2000);
+};
+
+// Init
+init();
+</script>
+</body>
+</html>

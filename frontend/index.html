@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NazAQ CRM — مركز الناصرة للتأهيل</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --yellow:#F5C518;--yellow-dark:#D4A017;--yellow-pale:#FFFBEE;--yellow-light:#FFF8DC;
+  --bg:#F9F7F0;--surface:#FFFFFF;--surface2:#F4F1E8;--border:#E8E0C8;--border2:#D4C99A;
+  --text:#1A1A1A;--text2:#5A5245;--text3:#8A7E6A;--accent:#C8860A;
+  --green:#2E7D52;--green-bg:#E8F5EE;--red:#C0392B;--red-bg:#FDEDEC;
+  --blue:#1A5F8A;--blue-bg:#E8F2FA;--orange:#D4670A;--orange-bg:#FEF0E3;
+  --purple:#6B3FA0;--purple-bg:#F0EAF8;
+  --radius:10px;--radius-lg:14px;--font:'Plus Jakarta Sans','Noto Sans Hebrew','Noto Sans Arabic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
+
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1A1A1A 0%,#2C2410 50%,#1A1A1A 100%);position:fixed;inset:0;z-index:9999;}
+.login-card{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;}
+.login-logo{width:80px;height:80px;background:var(--yellow);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px;font-weight:700;color:#1A1A1A;box-shadow:0 4px 20px rgba(245,197,24,0.4);}
+.login-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.login-sub{color:var(--text2);font-size:13px;margin-bottom:32px;}
+.login-field{margin-bottom:16px;text-align:right;}
+.login-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.login-field input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);outline:none;transition:border-color .2s;}
+.login-field input:focus{border-color:var(--yellow);}
+.login-btn{width:100%;padding:14px;background:var(--yellow);border:none;border-radius:var(--radius);font-size:15px;font-weight:700;font-family:var(--font);color:#1A1A1A;cursor:pointer;margin-top:8px;transition:background .2s,transform .1s;}
+.login-btn:hover{background:var(--yellow-dark);}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;}
+
+/* APP SHELL */
+#app{display:none;min-height:100vh;flex-direction:column;}
+#app.visible{display:flex;}
+.topbar{background:#1A1A1A;color:white;padding:0 24px;display:flex;align-items:center;gap:16px;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3);}
+.topbar-logo{width:40px;height:40px;background:var(--yellow);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#1A1A1A;flex-shrink:0;}
+.topbar-name{font-size:16px;font-weight:700;}
+.topbar-sub{font-size:11px;color:#999;margin-top:1px;}
+.topbar-spacer{flex:1;}
+.lang-switcher{display:flex;gap:4px;}
+.lang-btn{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #444;background:transparent;color:#bbb;cursor:pointer;transition:all .2s;font-family:var(--font);}
+.lang-btn.active{background:var(--yellow);color:#1A1A1A;border-color:var(--yellow);}
+.topbar-user{font-size:12px;color:#bbb;}
+.admin-toplink{display:none;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid #555;color:var(--yellow);font-size:12px;font-weight:600;text-decoration:none;transition:background .2s;}
+.admin-toplink:hover{background:#333;}
+.logout-btn{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #444;background:transparent;color:#bbb;cursor:pointer;font-family:var(--font);transition:all .2s;}
+.logout-btn:hover{background:#333;}
+
+/* NAVBAR */
+.navbar{background:var(--surface);border-bottom:2px solid var(--border);padding:0 24px;display:flex;gap:0;overflow-x:auto;}
+.nav-tab{padding:14px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--text2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:var(--font);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.nav-tab:hover{color:var(--accent);}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--yellow);}
+.nbadge{background:var(--red);color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;}
+
+/* CONTENT */
+.content{padding:24px;flex:1;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--yellow);}
+[dir=ltr] .stat-card::before{right:auto;left:0;}
+.stat-card.green::before{background:var(--green);}
+.stat-card.orange::before{background:var(--orange);}
+.stat-card.blue::before{background:var(--blue);}
+.stat-card.red::before{background:var(--red);}
+.stat-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.stat-value{font-size:30px;font-weight:700;line-height:1;}
+
+/* SECTION HEADER */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.section-title{font-size:18px;font-weight:700;}
+
+/* SEARCH */
+.search-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.search-input{flex:1;min-width:180px;padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);background:var(--surface);outline:none;transition:border-color .2s;}
+.search-input:focus{border-color:var(--yellow);}
+.filter-select{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);background:var(--surface);outline:none;cursor:pointer;}
+.filter-select:focus{border-color:var(--yellow);}
+
+/* BUTTONS */
+.btn{padding:9px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);display:inline-flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap;}
+.btn-primary{background:var(--yellow);color:#1A1A1A;}
+.btn-primary:hover{background:var(--yellow-dark);}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--border);}
+.btn-danger{background:var(--red-bg);color:var(--red);}
+.btn-danger:hover{background:var(--red);color:white;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+
+/* TABLE */
+.table-wrapper{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead{background:var(--yellow-pale);}
+th{padding:11px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;}
+[dir=ltr] th,[dir=ltr] td{text-align:left;}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--yellow-pale);}
+
+/* AVATAR */
+.avatar{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.av-0{background:#FDE97A;color:#7A5A00;}.av-1{background:#D4F0E8;color:#1A5A3A;}.av-2{background:#E8D4F5;color:#4A1A7A;}
+.av-3{background:#F5D4D4;color:#7A1A1A;}.av-4{background:#D4E8F5;color:#1A4A7A;}.av-5{background:#F5EAD4;color:#7A4A1A;}
+.av-6{background:#D4F5EA;color:#1A6A4A;}.av-7{background:#F5D4EA;color:#7A1A4A;}
+
+/* STATUS BADGES */
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+.status-badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.s-new{background:#F0EAF8;color:#6B3FA0;}.s-new::before{background:#6B3FA0;}
+.s-contacted{background:var(--blue-bg);color:var(--blue);}.s-contacted::before{background:var(--blue);}
+.s-callback{background:var(--orange-bg);color:var(--orange);}.s-callback::before{background:var(--orange);}
+.s-notinterested{background:#F4F4F4;color:#666;}.s-notinterested::before{background:#999;}
+.s-registered{background:var(--green-bg);color:var(--green);}.s-registered::before{background:var(--green);}
+
+/* SEM BADGE */
+.sem-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;}
+
+/* ACTION BUTTONS */
+.actions{display:flex;gap:4px;flex-wrap:wrap;}
+.act-btn{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:13px;transition:all .15s;color:var(--text2);white-space:nowrap;}
+.act-btn:hover{background:var(--yellow-pale);border-color:var(--yellow);color:var(--accent);}
+.act-btn.danger:hover{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px;width:100%;max-width:720px;box-shadow:0 8px 32px rgba(0,0,0,.12);margin:auto;max-height:90vh;overflow-y:auto;}
+.modal-lg{max-width:900px;}
+.modal-header{padding:24px 28px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:18px;font-weight:700;}
+.modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.modal-close:hover{background:var(--red-bg);color:var(--red);}
+.modal-body{padding:24px 28px;}
+.modal-footer{padding:16px 28px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.modal.edit-mode{background:#FFFDE8;}
+.modal.edit-mode .modal-header{background:var(--yellow);}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group.full{grid-column:1/-1;}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);}
+.form-input,.form-select,.form-textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);background:var(--surface);outline:none;transition:border-color .2s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--yellow);}
+.form-textarea{resize:vertical;min-height:80px;}
+.form-section-title{grid-column:1/-1;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);padding-top:8px;border-top:1px solid var(--border);margin-top:4px;}
+
+/* DETAIL SECTIONS */
+.detail-section{border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:14px;}
+.detail-section.yellow{background:var(--yellow-pale);border:1px solid #E8D98A;}
+.detail-section.blue{background:var(--blue-bg);border:1px solid #B8D4E8;}
+.detail-section.green{background:var(--green-bg);border:1px solid #A8D4BC;}
+.detail-section.purple{background:var(--purple-bg);border:1px solid #C4A8E0;}
+.detail-section.orange{background:var(--orange-bg);border:1px solid #E8C4A0;}
+.detail-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:12px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.detail-item label{display:block;font-size:11px;color:var(--text3);margin-bottom:2px;}
+.detail-item span{font-size:13px;font-weight:500;}
+.call-entry{background:var(--surface2);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;}
+[dir=rtl] .call-entry{border-right:3px solid var(--yellow);border-left:none;}
+[dir=ltr] .call-entry{border-left:3px solid var(--yellow);border-right:none;}
+[dir=rtl] .call-entry.overdue{border-right-color:var(--red);}
+[dir=ltr] .call-entry.overdue{border-left-color:var(--red);}
+.call-entry.overdue{background:var(--red-bg);}
+
+/* PROGRESS */
+.progress-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.progress-label{min-width:130px;font-size:13px;}
+.progress-bar{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width .5s;}
+.progress-count{min-width:30px;font-size:12px;font-weight:600;color:var(--text2);}
+
+/* FOLLOW-UP */
+.followup-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);margin-bottom:8px;}
+.followup-item.overdue{border-color:var(--red);background:var(--red-bg);}
+
+/* SEMESTER CARD */
+.sem-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:20px;}
+.sem-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+.sem-card-title{font-size:16px;font-weight:700;}
+.sem-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.sem-stat{background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center;}
+.sem-stat-val{font-size:22px;font-weight:700;line-height:1;}
+.sem-stat-lbl{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* FIELD MANAGER (Admin config) */
+.field-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);margin-bottom:6px;cursor:grab;}
+.field-row:hover{border-color:var(--yellow);}
+.field-row.locked{background:var(--yellow-pale);border-color:var(--yellow);}
+.field-row .drag-handle{color:var(--text3);cursor:grab;font-size:14px;}
+.field-row .field-name-input{flex:1;border:none;background:transparent;font-size:13px;font-family:var(--font);outline:none;color:var(--text);}
+.field-row .field-type-sel{font-size:12px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-family:var(--font);background:var(--surface2);}
+.field-vis-toggle{width:24px;height:24px;border-radius:5px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:all .15s;background:var(--surface2);}
+.field-vis-toggle.on{background:var(--yellow);border-color:var(--yellow);color:#111;}
+.field-del-btn{width:24px;height:24px;border-radius:5px;border:none;background:transparent;cursor:pointer;color:var(--text3);font-size:14px;display:flex;align-items:center;justify-content:center;}
+.field-del-btn:hover{color:var(--red);}
+.field-required-badge{font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);padding:2px 6px;border-radius:4px;flex-shrink:0;}
+.field-section-header{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:10px 0 6px;border-top:1px solid var(--border);margin-top:8px;}
+.col-toggle{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;user-select:none;}
+.col-toggle.on{background:var(--yellow-pale);border-color:var(--yellow);color:var(--accent);}
+.col-toggle.locked{cursor:default;opacity:.7;}
+
+/* TOOLTIP */
+.tooltip-wrap{position:relative;cursor:default;}
+.tooltip-wrap:hover .tooltip-box{display:block;}
+.tooltip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1A1A1A;color:white;padding:6px 10px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:200;}
+.tooltip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1A1A1A;}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:48px;color:var(--text3);}
+.empty-state .icon{font-size:48px;margin-bottom:12px;opacity:.4;}
+
+/* TABS inside modal */
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);margin:-4px -28px 20px;padding:0 28px;}
+.modal-tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;font-family:var(--font);transition:all .15s;}
+.modal-tab.active{color:var(--accent);border-bottom-color:var(--yellow);}
+.modal-tab-pane{display:none;}
+.modal-tab-pane.active{display:block;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Nz.</div>
+    <div class="login-title">NazAQ CRM</div>
+    <div class="login-sub">مركز الناصرة للتأهيل</div>
+    <div class="login-field"><label id="lbl-user">שם משתמש</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
+    <div class="login-field"><label id="lbl-pass">סיסמה</label><input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password"/></div>
+    <button class="login-btn" onclick="doLogin()">כניסה</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Nz.</div>
+    <div><div class="topbar-name">NazAQ CRM</div><div class="topbar-sub">مركز الناصرة للتأهيل</div></div>
+    <div class="topbar-spacer"></div>
+    <div class="lang-switcher">
+      <button class="lang-btn" onclick="setLang('he')">עברית</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('ar')">العربية</button>
+    </div>
+    <a id="admin-panel-link" class="admin-toplink" href="nazaq-admin.html" target="_blank">⚙️ Admin</a>
+    <span class="topbar-user" id="topbar-user">Admin</span>
+    <button class="logout-btn" onclick="doLogout()" id="logout-btn">יציאה</button>
+  </div>
+  <div class="navbar">
+    <button class="nav-tab active" onclick="showPage('dashboard')" id="tab-dashboard">📊 <span data-t="nav_dashboard">לוח בקרה</span></button>
+    <button class="nav-tab" onclick="showPage('students')" id="tab-students">👥 <span data-t="nav_students">תלמידים</span></button>
+    <button class="nav-tab" onclick="showPage('calls')" id="tab-calls">📞 <span data-t="nav_calls">שיחות</span> <span class="nbadge" id="pending-badge" style="display:none">0</span></button>
+    <button class="nav-tab" onclick="showPage('semesters')" id="tab-semesters">📅 <span data-t="nav_semesters">סמסטרים</span></button>
+    <button class="nav-tab" id="tab-config" style="display:none" onclick="showPage('config')">🔧 <span data-t="nav_config">הגדרות שדות</span></button>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label" data-t="total_students">סה"כ תלמידים</div><div class="stat-value" id="stat-total">0</div></div>
+        <div class="stat-card green"><div class="stat-label" data-t="registered">נרשמו</div><div class="stat-value" id="stat-registered">0</div></div>
+        <div class="stat-card orange"><div class="stat-label" data-t="callback_needed">ממתינים לחזרה</div><div class="stat-value" id="stat-callback">0</div></div>
+        <div class="stat-card blue"><div class="stat-label" data-t="total_calls">סה"כ שיחות</div><div class="stat-value" id="stat-calls">0</div></div>
+        <div class="stat-card red"><div class="stat-label" data-t="pending_followups">מעקב ממתין</div><div class="stat-value" id="stat-pending">0</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+        <div class="table-wrapper" style="padding:20px">
+          <div class="stat-label" style="margin-bottom:14px" data-t="status_breakdown">פילוח סטטוס</div>
+          <div id="status-breakdown"></div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-bottom:12px" data-t="pending_followup_reminders">תזכורות מעקב</div>
+          <div id="followup-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div id="page-students" class="page">
+      <div class="section-header">
+        <div class="section-title" data-t="nav_students">תלמידים</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="exportExcel()">⬇️ <span data-t="export_excel">ייצוא Excel</span></button>
+          <button class="btn btn-primary" onclick="openAddStudent()">＋ <span data-t="add_student">הוסף תלמיד</span></button>
+        </div>
+      </div>
+      <div class="search-row" id="student-filters"></div>
+      <div class="table-wrapper"><table><thead><tr id="students-thead"></tr></thead><tbody id="students-tbody"></tbody></table></div>
+    </div>
+
+    <!-- CALLS -->
+    <div id="page-calls" class="page">
+      <div class="section-header">
+        <div class="section-title" data-t="nav_calls">שיחות</div>
+        <button class="btn btn-primary" onclick="openAddCall(null)">＋ <span data-t="add_call">הוסף שיחה</span></button>
+      </div>
+      <div class="search-row">
+        <input type="text" class="search-input" id="call-search" oninput="renderCalls()" placeholder="חיפוש שיחה..."/>
+        <select class="filter-select" id="filter-followup" onchange="renderCalls()">
+          <option value="" data-t="all_followups">כל המעקבים</option>
+          <option value="yes" data-t="followup_yes">דורש מעקב</option>
+          <option value="no" data-t="followup_no">ללא מעקב</option>
+        </select>
+      </div>
+      <div class="table-wrapper"><table><thead><tr id="calls-thead"></tr></thead><tbody id="calls-tbody"></tbody></table></div>
+    </div>
+
+    <!-- SEMESTERS -->
+    <div id="page-semesters" class="page">
+      <div class="section-header">
+        <div class="section-title" data-t="nav_semesters">סמסטרים</div>
+        <button class="btn btn-primary" id="btn-add-sem" onclick="openAddSemester()">＋ <span data-t="add_semester">הוסף סמסטר</span></button>
+      </div>
+      <div id="semesters-list"></div>
+    </div>
+
+    <!-- CONFIG (admin only) -->
+    <div id="page-config" class="page">
+      <div class="section-title" style="margin-bottom:20px" data-t="nav_config">הגדרות שדות</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+        <!-- STUDENT FIELDS -->
+        <div>
+          <div class="section-header">
+            <div style="font-size:14px;font-weight:700">👥 שדות תלמיד <span id="sf-count" style="font-size:12px;color:var(--text3)"></span></div>
+            <button class="btn btn-secondary btn-sm" onclick="addStudentField()">＋ שדה</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px">עד 35 שדות. עמודות טבלה — מקסימום 10. 👁 = מוצג בטבלה</div>
+          <div id="student-fields-list"></div>
+          <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--text2)">עמודות בטבלה (מקס׳ 10):</div>
+          <div id="student-col-toggles" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        </div>
+        <!-- CALL FIELDS -->
+        <div>
+          <div class="section-header">
+            <div style="font-size:14px;font-weight:700">📞 שדות שיחה <span id="cf-count" style="font-size:12px;color:var(--text3)"></span></div>
+            <button class="btn btn-secondary btn-sm" onclick="addCallField()">＋ שדה</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px">עד 25 שדות. עמודות טבלה — מקסימום 10.</div>
+          <div id="call-fields-list"></div>
+          <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--text2)">עמודות בטבלה (מקס׳ 10):</div>
+          <div id="call-col-toggles" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding:16px 0;border-top:1px solid var(--border);margin-top:20px">
+        <button class="btn btn-primary" onclick="saveConfig()">💾 שמור הגדרות</button>
+        <button class="btn btn-secondary" onclick="resetConfig()">↩ איפוס לברירת מחדל</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- MODALS -->
+
+<!-- STUDENT DETAIL -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal" id="modal-detail-inner">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="avatar av-0" id="detail-avatar"></div>
+        <div><div class="modal-title" id="detail-name"></div><div id="detail-status-badge" style="margin-top:4px"></div></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-detail')">×</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="editFromDetail()">✏️ <span data-t="edit">עריכה</span></button>
+      <button class="btn btn-primary" onclick="addCallFromDetail()">📞 <span data-t="log_call">רשום שיחה</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT STUDENT -->
+<div class="modal-overlay" id="modal-student">
+  <div class="modal" id="modal-student-inner">
+    <div class="modal-header"><div class="modal-title" id="student-modal-title">הוסף תלמיד</div><button class="modal-close" onclick="closeModal('modal-student')">×</button></div>
+    <div class="modal-body"><div class="form-grid" id="student-form"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-student')" data-t="cancel">ביטול</button>
+      <button class="btn btn-primary" onclick="saveStudent()" data-t="save">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT CALL -->
+<div class="modal-overlay" id="modal-call">
+  <div class="modal" id="modal-call-inner">
+    <div class="modal-header"><div class="modal-title" id="call-modal-title">הוסף שיחה</div><button class="modal-close" onclick="closeModal('modal-call')">×</button></div>
+    <div class="modal-body"><div class="form-grid" id="call-form"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
+      <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT SEMESTER -->
+<div class="modal-overlay" id="modal-semester">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title" id="sem-modal-title">הוסף סמסטר</div><button class="modal-close" onclick="closeModal('modal-semester')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label class="form-label">שם הסמסטר *</label><input class="form-input" id="sem-name" placeholder="למשל: סמסטר א׳ תשפ"ו"/></div>
+        <div class="form-group">
+          <label class="form-label">סוג</label>
+          <select class="form-select" id="sem-type">
+            <option value="autumn">סתיו / Autumn</option>
+            <option value="spring">אביב / Spring</option>
+            <option value="summer">קיץ / Summer</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">שנה</label><input class="form-input" type="number" id="sem-year" min="2020" max="2040"/></div>
+        <div class="form-group"><label class="form-label">תאריך פתיחה</label><input class="form-input" type="date" id="sem-start"/></div>
+        <div class="form-group"><label class="form-label">תאריך סיום</label><input class="form-input" type="date" id="sem-end"/></div>
+        <div class="form-group full"><label class="form-label">תאריך אחרון להרשמה</label><input class="form-input" type="date" id="sem-reg-deadline"/></div>
+        <div class="form-group full"><label class="form-label">הערות</label><textarea class="form-textarea" id="sem-notes" style="min-height:60px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-semester')">ביטול</button>
+      <button class="btn btn-primary" onclick="saveSemester()">שמור</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════
+// TRANSLATIONS
+// ══════════════════════════════════════════
+const T = {
+  he:{
+    nav_dashboard:'לוח בקרה',nav_students:'תלמידים',nav_calls:'שיחות',nav_semesters:'סמסטרים',nav_config:'הגדרות שדות',
+    total_students:'סה"כ תלמידים',registered:'נרשמו',callback_needed:'ממתינים לחזרה',total_calls:'סה"כ שיחות',pending_followups:'מעקב ממתין',
+    status_breakdown:'פילוח סטטוס',pending_followup_reminders:'תזכורות מעקב',
+    add_student:'הוסף תלמיד',add_call:'הוסף שיחה',export_excel:'ייצוא Excel',add_semester:'הוסף סמסטר',
+    all_status:'כל הסטטוסים',s_new:'חדש',s_contacted:'יצרנו קשר',s_callback:'ממתין לחזרה',s_notinterested:'לא מעוניין',s_registered:'נרשם',
+    all_semesters:'כל הסמסטרים',all_years:'כל השנים',
+    edit:'עריכה',log_call:'רשום שיחה',save:'שמור',cancel:'ביטול',delete:'מחק',view:'צפייה',
+    no_calls:'אין שיחות רשומות',no_students:'אין תלמידים',overdue:'באיחור',logout:'יציאה',confirm_delete:'האם למחוק?',
+    dir_received:'נכנסת',dir_initiated:'יוצאת',
+    followup_yes:'דורש מעקב',followup_no:'ללא מעקב',all_followups:'כל המעקבים',
+    sem_autumn:'סתיו',sem_spring:'אביב',sem_summer:'קיץ',
+  },
+  en:{
+    nav_dashboard:'Dashboard',nav_students:'Students',nav_calls:'Calls',nav_semesters:'Semesters',nav_config:'Field Config',
+    total_students:'Total Students',registered:'Registered',callback_needed:'Callback Needed',total_calls:'Total Calls',pending_followups:'Pending Follow-ups',
+    status_breakdown:'Status Breakdown',pending_followup_reminders:'Follow-up Reminders',
+    add_student:'Add Student',add_call:'Add Call',export_excel:'Export Excel',add_semester:'Add Semester',
+    all_status:'All Statuses',s_new:'New',s_contacted:'Contacted',s_callback:'Callback Needed',s_notinterested:'Not Interested',s_registered:'Registered',
+    all_semesters:'All Semesters',all_years:'All Years',
+    edit:'Edit',log_call:'Log Call',save:'Save',cancel:'Cancel',delete:'Delete',view:'View',
+    no_calls:'No calls recorded',no_students:'No students found',overdue:'Overdue',logout:'Logout',confirm_delete:'Confirm delete?',
+    dir_received:'Received',dir_initiated:'Initiated',
+    followup_yes:'Follow-up Needed',followup_no:'No Follow-up',all_followups:'All Follow-ups',
+    sem_autumn:'Autumn',sem_spring:'Spring',sem_summer:'Summer',
+  },
+  ar:{
+    nav_dashboard:'لوحة التحكم',nav_students:'الطلاب',nav_calls:'المكالمات',nav_semesters:'الفصول',nav_config:'إعداد الحقول',
+    total_students:'إجمالي الطلاب',registered:'مسجلون',callback_needed:'يحتاج معاودة',total_calls:'إجمالي المكالمات',pending_followups:'متابعة معلقة',
+    status_breakdown:'توزيع الحالات',pending_followup_reminders:'تذكيرات المتابعة',
+    add_student:'إضافة طالب',add_call:'إضافة مكالمة',export_excel:'تصدير Excel',add_semester:'إضافة فصل',
+    all_status:'جميع الحالات',s_new:'جديد',s_contacted:'تم التواصل',s_callback:'يحتاج معاودة',s_notinterested:'غير مهتم',s_registered:'مسجل',
+    all_semesters:'كل الفصول',all_years:'كل السنوات',
+    edit:'تعديل',log_call:'تسجيل مكالمة',save:'حفظ',cancel:'إلغاء',delete:'حذف',view:'عرض',
+    no_calls:'لا توجد مكالمات',no_students:'لا يوجد طلاب',overdue:'متأخر',logout:'خروج',confirm_delete:'تأكيد الحذف؟',
+    dir_received:'واردة',dir_initiated:'صادرة',
+    followup_yes:'يحتاج متابعة',followup_no:'بدون متابعة',all_followups:'كل المتابعات',
+    sem_autumn:'خريف',sem_spring:'ربيع',sem_summer:'صيف',
+  }
+};
+let lang='he';
+function t(k){return(T[lang]&&T[lang][k])||T.he[k]||k;}
+
+function setLang(l){
+  lang=l;
+  document.documentElement.lang=l;
+  document.documentElement.dir=(l==='en')?'ltr':'rtl';
+  document.querySelectorAll('[data-t]').forEach(el=>{const k=el.dataset.t;if(T[l][k])el.textContent=T[l][k];});
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.lang-btn[onclick="setLang('${l}')"]`).classList.add('active');
+  document.getElementById('logout-btn').textContent=t('logout');
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+// DEFAULT FIELD DEFINITIONS
+// ══════════════════════════════════════════
+// type: text|number|email|phone|select|date|textarea
+// locked: cannot be deleted. required: mandatory on add form. tableDefault: shown in table by default.
+const DEFAULT_STUDENT_FIELDS = [
+  {key:'fname',      label:'שם פרטי',         type:'text',     locked:true, required:true,  tableCol:true,  section:'personal'},
+  {key:'lname',      label:'שם משפחה',         type:'text',     locked:true, required:true,  tableCol:true,  section:'personal'},
+  {key:'phone1',     label:'טלפון 1',           type:'phone',    locked:true, required:true,  tableCol:true,  section:'personal'},
+  {key:'phone2',     label:'טלפון 2',           type:'phone',    locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'email',      label:'אימייל',            type:'email',    locked:false,required:true,  tableCol:true,  section:'personal'},
+  {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
+  {key:'age',        label:'גיל',               type:'number',   locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'city',       label:'עיר',               type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
+  {key:'address',    label:'כתובת',             type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'school',     label:'בית ספר',           type:'text',     locked:false,required:false, tableCol:false, section:'school'},
+  {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'school', options:['new','contacted','callback','notinterested','registered']},
+  {key:'semester_id',label:'סמסטר',             type:'semester', locked:false,required:false, tableCol:true,  section:'school'},
+  {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'school', options:['social_media','friend','school','radio','other']},
+  {key:'parent_name', label:'שם הורה',          type:'text',     locked:false,required:false, tableCol:false, section:'parent'},
+  {key:'parent_phone',label:'טלפון הורה',       type:'phone',    locked:false,required:false, tableCol:false, section:'parent'},
+  {key:'parent_email',label:'אימייל הורה',      type:'email',    locked:false,required:false, tableCol:false, section:'parent'},
+  {key:'notes',      label:'הערות',             type:'textarea', locked:false,required:false, tableCol:false, section:'notes'},
+  {key:'created',    label:'תאריך יצירה',       type:'date',     locked:true, required:false, tableCol:true,  section:'meta'},
+];
+
+const DEFAULT_CALL_FIELDS = [
+  {key:'fname',       label:'שם פרטי',    type:'text',     locked:true, required:true,  tableCol:true,  section:'main'},
+  {key:'lname',       label:'שם משפחה',   type:'text',     locked:true, required:true,  tableCol:true,  section:'main'},
+  {key:'phone',       label:'טלפון',      type:'phone',    locked:true, required:false, tableCol:true,  section:'main'},
+  {key:'datetime',    label:'תאריך ושעה', type:'datetime', locked:true, required:false, tableCol:true,  section:'main'},
+  {key:'caller',      label:'מבצע השיחה', type:'text',     locked:false,required:false, tableCol:true,  section:'main'},
+  {key:'direction',   label:'כיוון',      type:'select',   locked:false,required:false, tableCol:true,  section:'main', options:['received','initiated']},
+  {key:'details',     label:'פרטי השיחה', type:'textarea', locked:false,required:false, tableCol:false, section:'main'},
+  {key:'followup',    label:'מעקב',       type:'select',   locked:false,required:false, tableCol:true,  section:'followup', options:['yes','no']},
+  {key:'followup_date',label:'תאריך מעקב',type:'date',    locked:false,required:false, tableCol:true,  section:'followup'},
+  {key:'comments',    label:'הערות',      type:'textarea', locked:false,required:false, tableCol:false, section:'followup'},
+];
+
+// ══════════════════════════════════════════
+// API CONFIG
+// ══════════════════════════════════════════
+const API_BASE = 'https://nazaq.org';
+let authToken = null;
+
+async function api(method, path, body){
+  const opts = {
+    method,
+    headers: { 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(API_BASE + path, opts);
+  if(r.status === 401){ doLogout(); throw new Error('Session expired'); }
+  if(!r.ok){ const e=await r.json().catch(()=>({error:'Server error'})); throw new Error(e.error||'Server error'); }
+  return r.json();
+}
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let students=[], calls=[], semesters=[];
+let studentFields=[], callFields=[];
+let editingStudentId=null, editingCallId=null, editingSemesterId=null;
+let detailStudentId=null;
+let currentUser=null;
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2);}
+function formatDate(d){if(!d)return'';return d.toString().substring(0,10);}
+function isOverdue(d){if(!d)return false;return new Date(d)<new Date();}
+function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date)).length;}
+
+// ══════════════════════════════════════════
+// STORAGE — now hits real API
+// ══════════════════════════════════════════
+async function loadData(){
+  try{
+    showLoadingOverlay(true);
+    const [sData, stData, cData, cfg] = await Promise.all([
+      api('GET','/api/semesters'),
+      api('GET','/api/students?limit=500'),
+      api('GET','/api/calls?limit=500'),
+      api('GET','/api/config').catch(()=>({}))
+    ]);
+    semesters   = sData || [];
+    students    = stData.data || stData || [];
+    calls       = cData.data  || cData  || [];
+    // Field config
+    if(cfg && cfg.studentFields) studentFields = cfg.studentFields;
+    else studentFields = JSON.parse(JSON.stringify(DEFAULT_STUDENT_FIELDS));
+    if(cfg && cfg.callFields) callFields = cfg.callFields;
+    else callFields = JSON.parse(JSON.stringify(DEFAULT_CALL_FIELDS));
+  }catch(e){
+    console.error('Load error:',e);
+    showError('שגיאה בטעינת נתונים: '+e.message);
+  } finally {
+    showLoadingOverlay(false);
+  }
+}
+
+async function saveStudent_api(data, id){
+  if(id) return api('PUT','/api/students/'+id, data);
+  return api('POST','/api/students', data);
+}
+async function deleteStudent_api(id){ return api('DELETE','/api/students/'+id); }
+async function saveCall_api(data, id){
+  if(id) return api('PUT','/api/calls/'+id, data);
+  return api('POST','/api/calls', data);
+}
+async function deleteCall_api(id){ return api('DELETE','/api/calls/'+id); }
+async function saveSemester_api(data, id){
+  if(id) return api('PUT','/api/semesters/'+id, data);
+  return api('POST','/api/semesters', data);
+}
+async function deleteSemester_api(id){ return api('DELETE','/api/semesters/'+id); }
+async function saveConfig_api(cfg){ return api('PUT','/api/config', cfg); }
+
+function showLoadingOverlay(show){
+  let el = document.getElementById('loading-overlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(249,247,240,.85);z-index:9000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-size:14px;color:var(--text2)';
+    el.innerHTML = '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--yellow);border-radius:50%;animation:spin .7s linear infinite"></div><div>טוען נתונים...</div>';
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? 'flex' : 'none';
+}
+
+function showError(msg){
+  let el = document.getElementById('api-error-banner');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'api-error-banner';
+    el.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--red);color:white;padding:10px 20px;border-radius:10px;font-size:13px;z-index:8000;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(()=>{ el.style.display='none'; }, 5000);
+}
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value.trim();
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(!u||!p){errEl.textContent='נדרש שם משתמש וסיסמה';return;}
+  try{
+    errEl.textContent='⏳ מתחבר...';
+    const data=await api('POST','/api/auth/login',{username:u,password:p});
+    authToken=data.token;
+    currentUser=data.user;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('visible');
+    document.getElementById('topbar-user').textContent=(currentUser.fname||'')+(currentUser.lname?' '+currentUser.lname:'');
+    const isAdmin=(currentUser.role==='admin');
+    document.getElementById('admin-panel-link').style.display=isAdmin?'inline-flex':'none';
+    document.getElementById('tab-config').style.display=isAdmin?'flex':'none';
+    await loadData();
+    setLang('he');
+    renderAll();
+  }catch(e){
+    errEl.textContent='❌ '+e.message;
+  }
+}
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display='flex';
+  ['login-user','login-pass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('login-error').textContent='';
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('tab-'+p).classList.add('active');
+  if(p==='students') renderStudents();
+  if(p==='calls') renderCalls();
+  if(p==='dashboard') renderDashboard();
+  if(p==='semesters') renderSemesters();
+  if(p==='config') renderConfig();
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+const STATUS_LABELS=()=>({new:t('s_new'),contacted:t('s_contacted'),callback:t('s_callback'),notinterested:t('s_notinterested'),registered:t('s_registered')});
+const STATUS_CLASS={new:'s-new',contacted:'s-contacted',callback:'s-callback',notinterested:'s-notinterested',registered:'s-registered'};
+const HOW_HEARD_MAP=()=>({social_media:'רשתות חברתיות',friend:'חבר/ה',school:'בית ספר',radio:'רדיו',other:'אחר'});
+const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
+const SEM_TYPE_COLOR={autumn:{bg:'#FEF0E3',color:'#D4670A'},spring:{bg:'#E8F5EE',color:'#2E7D52'},summer:{bg:'#FFF8DC',color:'#C8860A'}};
+
+function statusBadge(s){return`<span class="status-badge ${STATUS_CLASS[s]||''}">${STATUS_LABELS()[s]||s}</span>`;}
+function avatarInitials(s){return(((s.fname||'')[0]||'')+((s.lname||'')[0]||'')||'?').toUpperCase();}
+function avatarClass(s){const c=['av-0','av-1','av-2','av-3','av-4','av-5','av-6','av-7'];return c[(s.fname||'').charCodeAt(0)%8]||'av-0';}
+
+function getSemester(id){return semesters.find(s=>s.id===id)||null;}
+function semBadgeHTML(semId){
+  const sem=getSemester(semId);
+  if(!sem) return '<span style="color:var(--text3)">—</span>';
+  const c=SEM_TYPE_COLOR[sem.type]||{bg:'#eee',color:'#666'};
+  return `<span class="sem-badge" style="background:${c.bg};color:${c.color}">${sem.name}</span>`;
+}
+
+// Which semesters are selectable when adding/editing a student:
+// last 2 + future 4 (relative to today)
+function selectableSemesters(){
+  const today=new Date();
+  const sorted=[...semesters].sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const past=sorted.filter(s=>new Date(s.start)<=today);
+  const future=sorted.filter(s=>new Date(s.start)>today);
+  return [...past.slice(-2),...future.slice(0,4)];
+}
+
+function updateBadge(){
+  const n=pendingCount();
+  const el=document.getElementById('pending-badge');
+  el.textContent=n; el.style.display=n?'inline-flex':'none';
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard(){
+  document.getElementById('stat-total').textContent=students.length;
+  document.getElementById('stat-registered').textContent=students.filter(s=>s.status==='registered').length;
+  document.getElementById('stat-callback').textContent=students.filter(s=>s.status==='callback').length;
+  document.getElementById('stat-calls').textContent=calls.length;
+  document.getElementById('stat-pending').textContent=pendingCount();
+  updateBadge();
+  // Status breakdown
+  const statuses=['new','contacted','callback','notinterested','registered'];
+  const colors={new:'#6B3FA0',contacted:'#378ADD',callback:'#D4670A',notinterested:'#888780',registered:'#2E7D52'};
+  document.getElementById('status-breakdown').innerHTML=statuses.map(s=>{
+    const count=students.filter(x=>x.status===s).length;
+    const pct=students.length?Math.round(count/students.length*100):0;
+    return`<div class="progress-row"><div class="progress-label">${STATUS_LABELS()[s]}</div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[s]}"></div></div><div class="progress-count">${count}</div></div>`;
+  }).join('');
+  // Follow-up reminders
+  const fu=calls.filter(c=>c.followup==='yes'&&c.followup_date).sort((a,b)=>new Date(a.followup_date)-new Date(b.followup_date)).slice(0,10);
+  const fl=document.getElementById('followup-list');
+  if(!fu.length){fl.innerHTML=`<div class="empty-state"><div>✅</div><div>${t('no_calls')}</div></div>`;return;}
+  fl.innerHTML=fu.map(c=>{
+    const over=isOverdue(c.followup_date);
+    return`<div class="followup-item${over?' overdue':''}"><div style="flex:1"><div style="font-weight:600;font-size:13px">${c.fname||''} ${c.lname||''}</div><div style="font-size:12px;color:var(--text3)">${c.phone||''}</div></div><div style="font-size:12px;font-weight:${over?700:500};color:${over?'var(--red)':'var(--text2)'}">${over?'⚠️ '+t('overdue')+' · ':''} ${formatDate(c.followup_date)}</div></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// STUDENTS TABLE (dynamic columns)
+// ══════════════════════════════════════════
+function tableFields(fields){
+  // Fields with tableCol=true, name+phone+status always shown (locked), max 10
+  return fields.filter(f=>f.tableCol);
+}
+
+function renderStudentFilters(){
+  const el=document.getElementById('student-filters');
+  // Build filter row: search + status + semester + year
+  const semOptions=semesters.sort((a,b)=>new Date(b.start)-new Date(a.start)).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  el.innerHTML=`
+    <input type="text" class="search-input" id="student-search" oninput="renderStudents()" placeholder="חיפוש לפי שם, טלפון, ת.ז..."/>
+    <select class="filter-select" id="filter-status" onchange="renderStudents()">
+      <option value="">${t('all_status')}</option>
+      ${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
+    </select>
+    <select class="filter-select" id="filter-semester" onchange="renderStudents()">
+      <option value="">${t('all_semesters')}</option>
+      ${semOptions}
+    </select>`;
+}
+
+function renderStudents(){
+  // Render filters if not already
+  if(!document.getElementById('student-search')) renderStudentFilters();
+  const q=(document.getElementById('student-search').value||'').toLowerCase();
+  const fstatus=document.getElementById('filter-status').value;
+  const fsem=document.getElementById('filter-semester').value;
+  const cols=tableFields(studentFields);
+  // Build header
+  const thead=document.getElementById('students-thead');
+  thead.innerHTML='<th></th>'+cols.map(f=>`<th>${f.label}</th>`).join('')+'<th>פעולות</th>';
+  let filtered=students.filter(s=>{
+    if(q&&!(`${s.fname||''} ${s.lname||''} ${s.phone1||''} ${s.phone2||''} ${s.id_number||''} ${s.email||''}`).toLowerCase().includes(q))return false;
+    if(fstatus&&s.status!==fstatus)return false;
+    if(fsem&&s.semester_id!==fsem)return false;
+    return true;
+  });
+  const tbody=document.getElementById('students-tbody');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${cols.length+2}"><div class="empty-state"><div class="icon">👥</div><div>${t('no_students')}</div></div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(s=>{
+    const cells=cols.map(f=>{
+      const val=s[f.key];
+      if(f.key==='fname'||f.key==='lname') return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong></td>`;
+      if(f.key==='status') return`<td>${statusBadge(s.status)}</td>`;
+      if(f.key==='semester_id') return`<td>${semBadgeHTML(s.semester_id)}</td>`;
+      if(f.key==='how_heard') return`<td>${HOW_HEARD_MAP()[val]||val||'—'}</td>`;
+      if(f.key==='direction') return`<td>${DIRECTION_MAP()[val]||val||'—'}</td>`;
+      if(f.key==='created') return`<td style="font-size:12px;color:var(--text3)">${formatDate(val)}</td>`;
+      if(f.key==='followup') return`<td>${val==='yes'?'✓':''}</td>`;
+      if(f.key==='followup_date'){const ov=val&&isOverdue(val);return`<td style="${ov?'color:var(--red);font-weight:700':''}">${ov?'⚠️ ':''}${formatDate(val)||'—'}</td>`;}
+      return`<td style="font-size:13px">${val||'—'}</td>`;
+    });
+    // Remove duplicate name cols - only show combined name once
+    const dedupedCells=[];
+    const nameShown={};
+    cols.forEach((f,i)=>{
+      if((f.key==='lname')&&cols.find(x=>x.key==='fname')){if(nameShown.name)return;nameShown.name=true;}
+      if(f.key==='fname'){nameShown.name=true;dedupedCells.push(cells[i]);}
+      else if(f.key!=='lname') dedupedCells.push(cells[i]);
+    });
+    const cellsHTML=cols.map((f,i)=>{
+      if(f.key==='lname') return '';
+      return cells[i];
+    }).join('');
+    return`<tr style="cursor:pointer" onclick="openDetail('${s.id}')">
+      <td><div class="avatar ${avatarClass(s)}">${avatarInitials(s)}</div></td>
+      ${cellsHTML}
+      <td onclick="event.stopPropagation()"><div class="actions">
+        <button class="act-btn" onclick="openDetail('${s.id}')">👁 <span style="font-size:11px">${t('view')}</span></button>
+        <button class="act-btn" onclick="openEditStudent('${s.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
+        <button class="act-btn" onclick="openStudentCalls('${s.id}')">📞 <span style="font-size:11px">${t('nav_calls')}</span></button>
+        <button class="act-btn danger" onclick="deleteStudent('${s.id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// STUDENT DETAIL POPUP (shows ALL fields)
+// ══════════════════════════════════════════
+function openDetail(id){
+  const s=students.find(x=>x.id===id);
+  if(!s)return;
+  detailStudentId=id;
+  document.getElementById('detail-name').textContent=`${s.fname||''} ${s.lname||''}`;
+  document.getElementById('detail-status-badge').innerHTML=statusBadge(s.status);
+  const av=document.getElementById('detail-avatar');
+  av.className=`avatar ${avatarClass(s)}`; av.textContent=avatarInitials(s);
+  document.getElementById('modal-detail-inner').classList.remove('edit-mode');
+
+  // Group fields by section
+  const sections={personal:[],school:[],parent:[],notes:[],meta:[],custom:[]};
+  studentFields.forEach(f=>{
+    if(f.key==='fname'||f.key==='lname') return; // already in header
+    const sec=f.section||'custom';
+    if(sections[sec]!==undefined) sections[sec].push(f);
+    else sections.custom.push(f);
+  });
+  const sectionColors={personal:'yellow',school:'blue',parent:'green',notes:'purple',meta:'orange',custom:'blue'};
+  const sectionIcons={personal:'📋',school:'🏫',parent:'👨‍👩‍👧',notes:'📝',meta:'ℹ️',custom:'📌'};
+  const sectionLabels={personal:'פרטי קשר',school:'מידע לימודי',parent:'הורה / אפוטרופוס',notes:'הערות',meta:'נתוני מערכת',custom:'נוספות'};
+
+  let html='';
+  Object.entries(sections).forEach(([sec,fields])=>{
+    const nonEmpty=fields.filter(f=>s[f.key]!==undefined&&s[f.key]!==''&&s[f.key]!==null);
+    if(!nonEmpty.length) return;
+    if(sec==='notes'){
+      html+=`<div class="detail-section ${sectionColors[sec]}"><div class="detail-section-title">${sectionIcons[sec]} ${sectionLabels[sec]}</div><div style="font-size:13px">${s.notes||''}</div></div>`;
+      return;
+    }
+    html+=`<div class="detail-section ${sectionColors[sec]}"><div class="detail-section-title">${sectionIcons[sec]} ${sectionLabels[sec]}</div><div class="detail-grid">`;
+    fields.forEach(f=>{
+      let val=s[f.key];
+      if(val===undefined||val===null||val==='') val='—';
+      else if(f.key==='status') val=STATUS_LABELS()[val]||val;
+      else if(f.key==='semester_id') val=getSemester(val)?.name||'—';
+      else if(f.key==='how_heard') val=HOW_HEARD_MAP()[val]||val;
+      else if(f.key==='direction') val=DIRECTION_MAP()[val]||val;
+      else if(f.type==='date') val=formatDate(val);
+      else if(f.key==='followup') val=val==='yes'?'✓ כן':'✗ לא';
+      html+=`<div class="detail-item"><label>${f.label}</label><span>${val}</span></div>`;
+    });
+    html+='</div></div>';
+  });
+
+  // Call history
+  const studentCalls=calls.filter(c=>c.student_id===id).sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+  html+=`<div style="margin-top:16px"><div class="section-title" style="font-size:14px;margin-bottom:10px">📞 היסטוריית שיחות (${studentCalls.length})</div>`;
+  if(!studentCalls.length){html+=`<div style="font-size:13px;color:var(--text3)">${t('no_calls')}</div>`;}
+  else{
+    studentCalls.forEach(c=>{
+      const over=c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date);
+      html+=`<div class="call-entry${over?' overdue':''}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <strong style="font-size:12px">${(c.datetime||'').substring(0,16)}</strong>
+          <span style="font-size:11px;color:var(--text3)">${DIRECTION_MAP()[c.direction]||c.direction||''} · ${c.caller||''}</span>
+        </div>
+        <div style="font-size:13px">${c.details||''}</div>
+        ${c.followup==='yes'?`<div style="font-size:11px;margin-top:4px;color:${over?'var(--red)':'var(--orange)'}">⏰ מעקב: ${formatDate(c.followup_date)}</div>`:''}
+        ${c.comments?`<div style="font-size:11px;color:var(--text3);margin-top:4px">💬 ${c.comments}</div>`:''}
+      </div>`;
+    });
+  }
+  html+='</div>';
+  document.getElementById('detail-body').innerHTML=html;
+  document.getElementById('modal-detail').classList.add('open');
+}
+function editFromDetail(){closeModal('modal-detail');if(detailStudentId)openEditStudent(detailStudentId);}
+function addCallFromDetail(){closeModal('modal-detail');if(detailStudentId)addCallFromStudent(detailStudentId);}
+function openStudentCalls(id){
+  showPage('calls');
+  const s=students.find(x=>x.id===id);
+  if(s) document.getElementById('call-search').value=`${s.fname||''} ${s.lname||''}`;
+  renderCalls();
+}
+
+// ══════════════════════════════════════════
+// ADD/EDIT STUDENT — dynamic form
+// ══════════════════════════════════════════
+function openAddStudent(){
+  editingStudentId=null;
+  document.getElementById('student-modal-title').textContent=t('add_student');
+  document.getElementById('modal-student-inner').classList.remove('edit-mode');
+  buildStudentForm({});
+  document.getElementById('modal-student').classList.add('open');
+}
+function openEditStudent(id){
+  const s=students.find(x=>x.id===id);
+  if(!s)return;
+  editingStudentId=id;
+  document.getElementById('student-modal-title').textContent=t('edit');
+  document.getElementById('modal-student-inner').classList.add('edit-mode');
+  buildStudentForm(s);
+  document.getElementById('modal-student').classList.add('open');
+}
+
+function buildStudentForm(s){
+  const req=`<span style="color:var(--red)">*</span>`;
+  const semList=selectableSemesters();
+  const semOpts=`<option value="">— סמסטר —</option>`+semList.map(sm=>`<option value="${sm.id}"${s.semester_id===sm.id?'selected':''}>${sm.name}</option>`).join('');
+  let html='';
+  const sections={personal:'פרטים אישיים',school:'מידע לימודי',parent:'פרטי הורה',notes:'הערות',custom:'שדות נוספים'};
+  let lastSec='';
+  studentFields.filter(f=>f.key!=='created'&&f.key!=='fname'&&f.key!=='lname').forEach(f=>{
+    // Add fname+lname as combined first
+  });
+  // Build by section
+  const grouped={};
+  studentFields.filter(f=>f.key!=='created').forEach(f=>{
+    const sec=f.section||'custom';
+    if(!grouped[sec]) grouped[sec]=[];
+    grouped[sec].push(f);
+  });
+  // Personal section: fname+lname first side by side
+  html+=`<div class="form-section-title">פרטים אישיים</div>`;
+  const personalFields=grouped.personal||[];
+  // fname + lname always first
+  const fnameF=studentFields.find(f=>f.key==='fname');
+  const lnameF=studentFields.find(f=>f.key==='lname');
+  if(fnameF) html+=`<div class="form-group"><label class="form-label">${fnameF.label} ${req}</label>${inputHTML(fnameF,s)}</div>`;
+  if(lnameF) html+=`<div class="form-group"><label class="form-label">${lnameF.label} ${req}</label>${inputHTML(lnameF,s)}</div>`;
+  personalFields.filter(f=>f.key!=='fname'&&f.key!=='lname').forEach(f=>{
+    html+=fieldFormGroup(f,s,semOpts,req);
+  });
+  // Other sections
+  Object.entries(grouped).forEach(([sec,fields])=>{
+    if(sec==='personal') return;
+    const secLabel=sections[sec]||sec;
+    html+=`<div class="form-section-title">${secLabel}</div>`;
+    fields.forEach(f=>{ html+=fieldFormGroup(f,s,semOpts,req); });
+  });
+  html+=`<div class="form-group full" style="font-size:11px;color:var(--text3)">${req} שדות חובה</div>`;
+  document.getElementById('student-form').innerHTML=html;
+}
+
+function fieldFormGroup(f,s,semOpts,req){
+  if(f.key==='created') return '';
+  const isReq=f.required;
+  const fullClass=(f.type==='textarea'||f.key==='address'||f.key==='notes')?' full':'';
+  return`<div class="form-group${fullClass}"><label class="form-label">${f.label}${isReq?' '+req:''}</label>${inputHTML(f,s,semOpts)}</div>`;
+}
+
+function inputHTML(f,s,semOpts){
+  const val=s[f.key]!==undefined?s[f.key]:'';
+  const id=`sf-${f.key}`;
+  if(f.key==='status'){
+    return`<select class="form-select" id="${id}">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select>`;
+  }
+  if(f.key==='semester_id'){
+    return`<select class="form-select" id="${id}">${semOpts||''}</select>`;
+  }
+  if(f.key==='how_heard'){
+    const opts=['social_media','friend','school','radio','other'];
+    return`<select class="form-select" id="${id}">${opts.map(o=>`<option value="${o}"${val===o?'selected':''}>${HOW_HEARD_MAP()[o]}</option>`).join('')}</select>`;
+  }
+  if(f.key==='direction'){
+    return`<select class="form-select" id="${id}"><option value="initiated"${val==='initiated'?'selected':''}>יוצאת</option><option value="received"${val==='received'?'selected':''}>נכנסת</option></select>`;
+  }
+  if(f.key==='followup'){
+    return`<select class="form-select" id="${id}" onchange="toggleFollowupDate()"><option value="no"${val!=='yes'?'selected':''}>לא</option><option value="yes"${val==='yes'?'selected':''}>כן</option></select>`;
+  }
+  if(f.type==='select'&&f.options){
+    return`<select class="form-select" id="${id}">${f.options.map(o=>`<option value="${o}"${val===o?'selected':''}>${o}</option>`).join('')}</select>`;
+  }
+  if(f.type==='textarea'){
+    return`<textarea class="form-textarea" id="${id}">${val}</textarea>`;
+  }
+  const typeMap={text:'text',number:'number',email:'email',phone:'tel',date:'date',datetime:'datetime-local',phone:'tel'};
+  const inputType=typeMap[f.type]||'text';
+  return`<input class="form-input" type="${inputType}" id="${id}" value="${val}"/>`;
+}
+
+async function saveStudent(){
+  const REQUIRED_KEYS=studentFields.filter(f=>f.required).map(f=>f.key);
+  const data={};
+  const missing=[];
+  studentFields.filter(f=>f.key!=='created').forEach(f=>{
+    const el=document.getElementById(`sf-${f.key}`);
+    if(!el) return;
+    data[f.key]=el.value.trim?el.value.trim():el.value;
+  });
+  REQUIRED_KEYS.forEach(k=>{
+    if(!data[k]){
+      missing.push(k);
+      const el=document.getElementById(`sf-${k}`);
+      if(el) el.style.borderColor='var(--red)';
+    } else {
+      const el=document.getElementById(`sf-${k}`);
+      if(el) el.style.borderColor='';
+    }
+  });
+  if(missing.length){
+    let errEl=document.getElementById('sf-error');
+    if(!errEl){errEl=document.createElement('div');errEl.id='sf-error';errEl.style.cssText='grid-column:1/-1;color:var(--red);font-size:12px;background:var(--red-bg);padding:8px 12px;border-radius:8px;';document.getElementById('student-form').appendChild(errEl);}
+    const labels=missing.map(k=>studentFields.find(f=>f.key===k)?.label||k).join(', ');
+    errEl.textContent=`⚠️ שדות חובה: ${labels}`;
+    return;
+  }
+  try{
+    const saved=await saveStudent_api(data, editingStudentId);
+    if(editingStudentId){
+      const idx=students.findIndex(s=>s.id===editingStudentId);
+      if(idx!==-1) students[idx]={...students[idx],...saved};
+    } else {
+      students.unshift(saved);
+    }
+    closeModal('modal-student'); renderStudents(); renderDashboard();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+
+async function deleteStudent(id){
+  if(!confirm(t('confirm_delete'))) return;
+  try{
+    await deleteStudent_api(id);
+    students=students.filter(s=>s.id!==id);
+    calls=calls.filter(c=>c.student_id!==id);
+    renderStudents(); renderDashboard();
+  }catch(e){ showError('שגיאה במחיקה: '+e.message); }
+}
+
+// ══════════════════════════════════════════
+// CALLS TABLE (dynamic columns)
+// ══════════════════════════════════════════
+function renderCalls(){
+  const q=(document.getElementById('call-search').value||'').toLowerCase();
+  const ffu=document.getElementById('filter-followup').value;
+  const cols=tableFields(callFields);
+  document.getElementById('calls-thead').innerHTML=cols.map(f=>`<th>${f.label}</th>`).join('')+'<th>פעולות</th>';
+  let filtered=calls.filter(c=>{
+    if(q&&!(`${c.fname||''} ${c.lname||''} ${c.phone||''} ${c.followup_date||''}`).toLowerCase().includes(q)) return false;
+    if(ffu==='yes'&&c.followup!=='yes') return false;
+    if(ffu==='no'&&c.followup!=='no') return false;
+    return true;
+  }).sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+  const tbody=document.getElementById('calls-tbody');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${cols.length+1}"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(c=>{
+    const cells=cols.map(f=>{
+      const val=c[f.key];
+      if(f.key==='fname'||f.key==='lname') return`<td><strong>${c.fname||''} ${c.lname||''}</strong></td>`;
+      if(f.key==='direction') return`<td>${DIRECTION_MAP()[val]||val||'—'}</td>`;
+      if(f.key==='followup') return`<td>${val==='yes'?`<span style="color:var(--orange);font-weight:700">✓</span>`:''}</td>`;
+      if(f.key==='followup_date'){const ov=val&&isOverdue(val);return`<td style="${ov?'color:var(--red);font-weight:700':''}">${ov?'⚠️ ':''}${formatDate(val)||'—'}</td>`;}
+      if(f.key==='datetime') return`<td style="font-size:12px">${(val||'').substring(0,16)}</td>`;
+      return`<td>${val||'—'}</td>`;
+    });
+    // Deduplicate fname+lname
+    const seenName={};
+    const cellsHTML=cols.map((f,i)=>{
+      if(f.key==='lname'&&cols.find(x=>x.key==='fname')) return '';
+      return cells[i];
+    }).join('');
+    return`<tr>${cellsHTML}<td><div class="actions">
+      <button class="act-btn" onclick="openEditCall('${c.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
+      <button class="act-btn danger" onclick="deleteCall('${c.id}')">🗑</button>
+    </div></td></tr>`;
+  }).join('');
+}
+
+function openAddCall(studentId){
+  editingCallId=null;
+  document.getElementById('call-modal-title').textContent=t('add_call');
+  document.getElementById('modal-call-inner').classList.remove('edit-mode');
+  const s=studentId?students.find(x=>x.id===studentId):null;
+  buildCallForm({fname:s?.fname||'',lname:s?.lname||'',phone:s?.phone1||'',student_id:studentId||'',datetime:new Date().toISOString().substring(0,16),direction:'initiated',followup:'no'});
+  document.getElementById('modal-call').classList.add('open');
+}
+function openEditCall(id){
+  const c=calls.find(x=>x.id===id);
+  if(!c)return;
+  editingCallId=id;
+  document.getElementById('call-modal-title').textContent=t('edit');
+  document.getElementById('modal-call-inner').classList.add('edit-mode');
+  buildCallForm(c);
+  document.getElementById('modal-call').classList.add('open');
+}
+function addCallFromStudent(sid){openAddCall(sid);}
+
+function buildCallForm(c){
+  const studentOpts=students.map(s=>`<option value="${s.id}"${c.student_id===s.id?'selected':''}>${s.fname||''} ${s.lname||''}</option>`).join('');
+  let html=`<div class="form-group full"><label class="form-label">תלמיד</label><select class="form-select" id="cf-student" onchange="prefillStudentCall()">${studentOpts}</select></div>`;
+  html+=`<div class="form-section-title">פרטי שיחה</div>`;
+  callFields.filter(f=>f.key!=='student_id').forEach(f=>{
+    if(f.key==='followup_date'){
+      html+=`<div class="form-group" id="cf-fudate-group" style="${c.followup!=='yes'?'opacity:.4':''}"><label class="form-label">${f.label}</label>${inputHTML(f,c)}</div>`;
+    } else if(f.key==='followup'){
+      html+=`<div class="form-group"><label class="form-label">${f.label}</label><select class="form-select" id="cf-followup" onchange="toggleFollowupDate()"><option value="no"${c.followup!=='yes'?'selected':''}>לא</option><option value="yes"${c.followup==='yes'?'selected':''}>כן</option></select></div>`;
+    } else {
+      const fullClass=(f.type==='textarea')?' full':'';
+      html+=`<div class="form-group${fullClass}"><label class="form-label">${f.label}</label>${inputHTML(f,c)}</div>`;
+    }
+  });
+  document.getElementById('call-form').innerHTML=html;
+}
+
+function prefillStudentCall(){
+  const sid=document.getElementById('cf-student').value;
+  const s=students.find(x=>x.id===sid);
+  if(s){
+    const fnEl=document.getElementById('cf-fname'); if(fnEl) fnEl.value=s.fname||'';
+    const lnEl=document.getElementById('cf-lname'); if(lnEl) lnEl.value=s.lname||'';
+    const phEl=document.getElementById('cf-phone'); if(phEl) phEl.value=s.phone1||'';
+  }
+}
+function toggleFollowupDate(){
+  const v=document.getElementById('cf-followup');
+  const grp=document.getElementById('cf-fudate-group');
+  if(v&&grp) grp.style.opacity=v.value==='yes'?'1':'.4';
+}
+
+async function saveCall(){
+  const data={student_id:document.getElementById('cf-student')?.value||''};
+  callFields.filter(f=>f.key!=='student_id').forEach(f=>{
+    const elById=document.getElementById(`cf-${f.key}`);
+    if(elById) data[f.key]=elById.value.trim?elById.value.trim():elById.value;
+  });
+  const fuEl=document.getElementById('cf-followup');
+  if(fuEl) data.followup=fuEl.value;
+  if(data.followup!=='yes') data.followup_date='';
+  try{
+    const saved=await saveCall_api(data, editingCallId);
+    if(editingCallId){
+      const idx=calls.findIndex(c=>c.id===editingCallId);
+      if(idx!==-1) calls[idx]={...calls[idx],...saved};
+    } else {
+      calls.unshift(saved);
+    }
+    closeModal('modal-call'); renderCalls(); renderDashboard();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+async function deleteCall(id){
+  if(!confirm(t('confirm_delete')))return;
+  try{
+    await deleteCall_api(id);
+    calls=calls.filter(c=>c.id!==id);
+    renderCalls(); renderDashboard();
+  }catch(e){ showError('שגיאה במחיקה: '+e.message); }
+}
+
+// ══════════════════════════════════════════
+// SEMESTERS PAGE
+// ══════════════════════════════════════════
+function renderSemesters(){
+  const isAdmin=currentUser?.role==='admin'||!currentUser;
+  document.getElementById('btn-add-sem').style.display=isAdmin?'inline-flex':'none';
+  const sorted=[...semesters].sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const el=document.getElementById('semesters-list');
+  if(!sorted.length){el.innerHTML=`<div class="empty-state"><div class="icon">📅</div><div>אין סמסטרים</div></div>`;return;}
+  el.innerHTML=sorted.map(sem=>{
+    const semStudents=students.filter(s=>s.semester_id===sem.id);
+    const registered=semStudents.filter(s=>s.status==='registered').length;
+    const callback=semStudents.filter(s=>s.status==='callback').length;
+    const contacted=semStudents.filter(s=>s.status==='contacted').length;
+    const newCount=semStudents.filter(s=>s.status==='new').length;
+    const c=SEM_TYPE_COLOR[sem.type]||{bg:'#eee',color:'#666'};
+    const today=new Date();
+    const start=new Date(sem.start); const end=new Date(sem.end); const deadline=new Date(sem.reg_deadline);
+    let phase='future'; let phaseLabel=''; let phaseBg=''; let phaseColor='';
+    if(today>end){phase='past';phaseLabel='הסתיים';phaseBg='#f4f4f4';phaseColor='#888';}
+    else if(today>=start){phase='active';phaseLabel='פעיל';phaseBg='var(--green-bg)';phaseColor='var(--green)';}
+    else if(today>=deadline){phase='registration';phaseLabel='תקופת הרשמה';phaseBg='var(--orange-bg)';phaseColor='var(--orange)';}
+    else{phase='future';phaseLabel='עתידי';phaseBg='var(--blue-bg)';phaseColor='var(--blue)';}
+    return`<div class="sem-card">
+      <div class="sem-card-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="sem-badge" style="background:${c.bg};color:${c.color};font-size:13px;padding:5px 14px">${sem.name}</span>
+          <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;background:${phaseBg};color:${phaseColor}">${phaseLabel}</span>
+        </div>
+        ${isAdmin?`<div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditSemester('${sem.id}')">✏️ עריכה</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSemester('${sem.id}')">🗑</button>
+        </div>`:''}
+      </div>
+      <div class="sem-stats">
+        <div class="sem-stat"><div class="sem-stat-val">${semStudents.length}</div><div class="sem-stat-lbl">סה"כ מתעניינים</div></div>
+        <div class="sem-stat" style="border:1px solid var(--green);"><div class="sem-stat-val" style="color:var(--green)">${registered}</div><div class="sem-stat-lbl">נרשמו</div></div>
+        <div class="sem-stat"><div class="sem-stat-val" style="color:var(--orange)">${callback}</div><div class="sem-stat-lbl">ממתינים לחזרה</div></div>
+        <div class="sem-stat"><div class="sem-stat-val" style="color:var(--blue)">${contacted+newCount}</div><div class="sem-stat-lbl">ביצירת קשר</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12px">
+        <div style="color:var(--text3)">📅 פתיחה: <strong style="color:var(--text)">${formatDate(sem.start)}</strong></div>
+        <div style="color:var(--text3)">📅 סיום: <strong style="color:var(--text)">${formatDate(sem.end)}</strong></div>
+        <div style="color:var(--text3)">⏰ רישום עד: <strong style="color:${today>deadline&&phase!=='past'?'var(--red)':'var(--text)'}">${formatDate(sem.reg_deadline)}</strong></div>
+      </div>
+      ${sem.notes?`<div style="margin-top:10px;font-size:12px;color:var(--text2);background:var(--surface2);padding:8px 12px;border-radius:8px">${sem.notes}</div>`:''}
+      ${semStudents.length?`<div style="margin-top:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">תלמידים רשומים (${registered} מתוך ${semStudents.length})</div>
+        <div class="table-wrapper" style="max-height:220px;overflow-y:auto">
+          <table><thead><tr><th>שם</th><th>טלפון</th><th>סטטוס</th></tr></thead>
+          <tbody>${semStudents.slice(0,20).map(s=>`<tr>
+            <td><strong>${s.fname||''} ${s.lname||''}</strong></td>
+            <td>${s.phone1||'—'}</td>
+            <td>${statusBadge(s.status)}</td>
+          </tr>`).join('')}
+          ${semStudents.length>20?`<tr><td colspan="3" style="text-align:center;color:var(--text3);font-size:12px">+ ${semStudents.length-20} נוספים</td></tr>`:''}
+          </tbody></table>
+        </div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openAddSemester(){
+  editingSemesterId=null;
+  document.getElementById('sem-modal-title').textContent='הוסף סמסטר';
+  document.getElementById('sem-name').value='';
+  document.getElementById('sem-type').value='autumn';
+  document.getElementById('sem-year').value=new Date().getFullYear();
+  document.getElementById('sem-start').value='';
+  document.getElementById('sem-end').value='';
+  document.getElementById('sem-reg-deadline').value='';
+  document.getElementById('sem-notes').value='';
+  document.getElementById('modal-semester').classList.add('open');
+}
+function openEditSemester(id){
+  const sem=semesters.find(x=>x.id===id);
+  if(!sem)return;
+  editingSemesterId=id;
+  document.getElementById('sem-modal-title').textContent='עריכת סמסטר';
+  document.getElementById('sem-name').value=sem.name||'';
+  document.getElementById('sem-type').value=sem.type||'autumn';
+  document.getElementById('sem-year').value=sem.year||new Date().getFullYear();
+  document.getElementById('sem-start').value=sem.start||'';
+  document.getElementById('sem-end').value=sem.end||'';
+  document.getElementById('sem-reg-deadline').value=sem.reg_deadline||'';
+  document.getElementById('sem-notes').value=sem.notes||'';
+  document.getElementById('modal-semester').classList.add('open');
+}
+async function saveSemester(){
+  const name=document.getElementById('sem-name').value.trim();
+  if(!name){alert('נדרש שם סמסטר');return;}
+  const data={name,type:document.getElementById('sem-type').value,year:parseInt(document.getElementById('sem-year').value),start_date:document.getElementById('sem-start').value,end_date:document.getElementById('sem-end').value,reg_deadline:document.getElementById('sem-reg-deadline').value,notes:document.getElementById('sem-notes').value.trim()};
+  try{
+    const saved=await saveSemester_api(data, editingSemesterId);
+    if(editingSemesterId){
+      const idx=semesters.findIndex(x=>x.id===editingSemesterId);
+      if(idx!==-1) semesters[idx]={...semesters[idx],...saved};
+    } else {
+      semesters.push(saved);
+    }
+    closeModal('modal-semester'); renderSemesters();
+  }catch(e){ showError('שגיאה בשמירת סמסטר: '+e.message); }
+}
+async function deleteSemester(id){
+  if(!confirm('למחוק סמסטר? תלמידים שמשויכים אליו לא יימחקו.'))return;
+  try{
+    await deleteSemester_api(id);
+    semesters=semesters.filter(x=>x.id!==id);
+    students=students.map(s=>s.semester_id===id?{...s,semester_id:''}:s);
+    renderSemesters();
+  }catch(e){ showError('שגיאה במחיקה: '+e.message); }
+}
+
+// ══════════════════════════════════════════
+// FIELD CONFIG PAGE (admin)
+// ══════════════════════════════════════════
+function renderConfig(){
+  renderFieldList('student-fields-list', studentFields, 'student', 35);
+  renderFieldList('call-fields-list', callFields, 'call', 25);
+  renderColToggles('student-col-toggles', studentFields, 'student');
+  renderColToggles('call-col-toggles', callFields, 'call');
+  document.getElementById('sf-count').textContent=`(${studentFields.length}/35)`;
+  document.getElementById('cf-count').textContent=`(${callFields.length}/25)`;
+}
+
+function renderFieldList(containerId, fields, prefix, maxFields){
+  const el=document.getElementById(containerId);
+  const types=['text','number','email','phone','date','select','textarea'];
+  el.innerHTML=fields.map((f,i)=>{
+    const locked=f.locked;
+    return`<div class="field-row${locked?' locked':''}" data-index="${i}" data-prefix="${prefix}">
+      <span class="drag-handle" title="גרור לסידור מחדש">⠿</span>
+      <input class="field-name-input" value="${f.label}" onchange="updateFieldLabel('${prefix}',${i},this.value)" ${locked?'style="font-weight:600"':''}/>
+      <select class="field-type-sel" onchange="updateFieldType('${prefix}',${i},this.value)" ${locked?'disabled':''}>
+        ${types.map(tp=>`<option value="${tp}"${f.type===tp?'selected':''}>${tp}</option>`).join('')}
+      </select>
+      <label title="שדה חובה" style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer">
+        <input type="checkbox" ${f.required?'checked':''} ${locked?'disabled':''} onchange="updateFieldRequired('${prefix}',${i},this.checked)"/>חובה
+      </label>
+      ${locked?`<span class="field-required-badge">נעול</span>`:`<button class="field-del-btn" onclick="deleteField('${prefix}',${i})" title="מחק שדה">✕</button>`}
+    </div>`;
+  }).join('');
+}
+
+function renderColToggles(containerId, fields, prefix){
+  const el=document.getElementById(containerId);
+  const onCount=fields.filter(f=>f.tableCol).length;
+  el.innerHTML=fields.map((f,i)=>{
+    const isLocked=f.key==='fname'||f.key==='lname'||f.key==='phone'||f.key==='phone1'||f.key==='status';
+    const isOn=f.tableCol;
+    const canToggle=!isLocked;
+    return`<div class="col-toggle${isOn?' on':''}${isLocked?' locked':''}" onclick="${canToggle?`toggleColVisibility('${prefix}',${i})`:''}">
+      ${isLocked?'🔒 ':isOn?'👁 ':'🙈 '}${f.label}
+    </div>`;
+  }).join('');
+}
+
+function toggleColVisibility(prefix,idx){
+  const fields=prefix==='student'?studentFields:callFields;
+  const onCount=fields.filter(f=>f.tableCol).length;
+  if(!fields[idx].tableCol&&onCount>=10){alert('מקסימום 10 עמודות בטבלה');return;}
+  fields[idx].tableCol=!fields[idx].tableCol;
+  renderColToggles(prefix==='student'?'student-col-toggles':'call-col-toggles', fields, prefix);
+}
+function updateFieldLabel(prefix,idx,val){(prefix==='student'?studentFields:callFields)[idx].label=val;}
+function updateFieldType(prefix,idx,val){(prefix==='student'?studentFields:callFields)[idx].type=val;}
+function updateFieldRequired(prefix,idx,val){(prefix==='student'?studentFields:callFields)[idx].required=val;}
+
+function addStudentField(){
+  if(studentFields.length>=35){alert('מקסימום 35 שדות');return;}
+  studentFields.push({key:'custom_'+uid().substr(0,6),label:'שדה חדש',type:'text',locked:false,required:false,tableCol:false,section:'custom'});
+  renderConfig();
+}
+function addCallField(){
+  if(callFields.length>=25){alert('מקסימום 25 שדות');return;}
+  callFields.push({key:'custom_'+uid().substr(0,6),label:'שדה חדש',type:'text',locked:false,required:false,tableCol:false,section:'main'});
+  renderConfig();
+}
+function deleteField(prefix,idx){
+  const fields=prefix==='student'?studentFields:callFields;
+  if(fields[idx].locked){alert('לא ניתן למחוק שדה נעול');return;}
+  if(!confirm('למחוק שדה זה?'))return;
+  fields.splice(idx,1);
+  if(prefix==='student') studentFields=[...studentFields];
+  else callFields=[...callFields];
+  renderConfig();
+}
+async function saveConfig(){
+  try{
+    await saveConfig_api({studentFields, callFields});
+    alert('✅ הגדרות נשמרו!');
+    renderStudents(); renderCalls();
+  }catch(e){ showError('שגיאה בשמירת הגדרות: '+e.message); }
+}
+async function resetConfig(){
+  if(!confirm('לאפס לברירת מחדל? כל השינויים יאבדו.'))return;
+  studentFields=JSON.parse(JSON.stringify(DEFAULT_STUDENT_FIELDS));
+  callFields=JSON.parse(JSON.stringify(DEFAULT_CALL_FIELDS));
+  await saveConfig_api({studentFields, callFields});
+  renderConfig();
+}
+
+// ══════════════════════════════════════════
+// EXCEL EXPORT
+// ══════════════════════════════════════════
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  const sHeaders=studentFields.map(f=>f.label);
+  const sRows=students.map(s=>studentFields.map(f=>{
+    const v=s[f.key];
+    if(f.key==='status') return STATUS_LABELS()[v]||v||'';
+    if(f.key==='semester_id') return getSemester(v)?.name||'';
+    if(f.key==='how_heard') return HOW_HEARD_MAP()[v]||v||'';
+    if(f.key==='direction') return DIRECTION_MAP()[v]||v||'';
+    return v||'';
+  }));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([sHeaders,...sRows]),'תלמידים');
+  const cHeaders=callFields.map(f=>f.label);
+  const cRows=calls.map(c=>callFields.map(f=>{
+    const v=c[f.key];
+    if(f.key==='direction') return DIRECTION_MAP()[v]||v||'';
+    if(f.key==='followup') return v==='yes'?'כן':'לא';
+    return v||'';
+  }));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([cHeaders,...cRows]),'שיחות');
+  XLSX.writeFile(wb,'NazAQ-Export.xlsx');
+}
+
+// ══════════════════════════════════════════
+// MODAL UTILS
+// ══════════════════════════════════════════
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ══════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════
+function renderAll(){
+  renderDashboard();
+  renderStudentFilters();
+  if(document.getElementById('page-students').classList.contains('active')) renderStudents();
+  if(document.getElementById('page-calls').classList.contains('active')) renderCalls();
+  if(document.getElementById('page-semesters').classList.contains('active')) renderSemesters();
+}
+
+document.querySelector(".lang-btn[onclick=\"setLang('he')\"]").classList.add('active');
+</script>
+</body>
+</html>
