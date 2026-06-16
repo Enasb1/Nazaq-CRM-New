@@ -73,9 +73,18 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
 
-// ── 404 ───────────────────────────────────────────────
-app.use((req, res) => {
+// ── SERVE FRONTEND ────────────────────────────────────
+const path = require('path');
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// ── 404 (API routes only) ─────────────────────────────
+app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
+});
+
+// ── SPA FALLBACK — serve index.html for all other routes ──
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 // ── ERROR HANDLER ─────────────────────────────────────
