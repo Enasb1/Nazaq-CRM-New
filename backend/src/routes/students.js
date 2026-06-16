@@ -61,8 +61,12 @@ router.post('/',
         created_by: req.user.id
       };
       const encrypted = encryptStudent(studentData);
+      console.log('[CREATE STUDENT] Inserting fields:', Object.keys(encrypted).join(', '));
       const { data, error } = await supabase.from('students').insert(encrypted).select().single();
-      if (error) throw error;
+      if (error) {
+        console.error('[CREATE STUDENT] Supabase error:', error.message, '| details:', error.details, '| hint:', error.hint);
+        throw error;
+      }
       await auditLog(req.user.id, req.user.username, `Created student: ${req.body.fname} ${req.body.lname||''}`, 'create', `Phone: ${req.body.phone1}`);
       res.status(201).json(decryptStudent(data));
     } catch (err) {
