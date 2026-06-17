@@ -507,13 +507,13 @@ function setLang(l){
 // locked: cannot be deleted. required: mandatory on add form. tableDefault: shown in table by default.
 const DEFAULT_STUDENT_FIELDS = [
   {key:'fname',      label:'שם פרטי',         type:'text',     locked:true, required:true,  tableCol:true,  section:'personal'},
-  {key:'lname',      label:'שם משפחה',         type:'text',     locked:true, required:true,  tableCol:true,  section:'personal'},
+  {key:'lname',      label:'שם משפחה',         type:'text',     locked:true, required:false,  tableCol:true,  section:'personal'},
   {key:'phone1',     label:'טלפון 1',           type:'phone',    locked:true, required:true,  tableCol:true,  section:'personal'},
   {key:'phone2',     label:'טלפון 2',           type:'phone',    locked:false,required:false, tableCol:false, section:'personal'},
-  {key:'email',      label:'אימייל',            type:'email',    locked:false,required:true,  tableCol:true,  section:'personal'},
+  {key:'email',      label:'אימייל',            type:'email',    locked:false,required:false,  tableCol:true,  section:'personal'},
   {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
   {key:'age',        label:'גיל',               type:'number',   locked:false,required:false, tableCol:false, section:'personal'},
-  {key:'city',       label:'עיר',               type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
+  {key:'city',       label:'עיר',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'address',    label:'כתובת',             type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'school',     label:'בית ספר',           type:'text',     locked:false,required:false, tableCol:false, section:'school'},
   {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'school', options:['new','contacted','callback','notinterested','registered']},
