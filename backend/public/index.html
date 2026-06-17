@@ -135,6 +135,10 @@ tr:hover td{background:var(--yellow-pale);}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
 .modal-overlay.open{display:flex;}
 .modal{background:var(--surface);border-radius:20px;width:100%;max-width:720px;box-shadow:0 8px 32px rgba(0,0,0,.12);margin:auto;max-height:90vh;overflow-y:auto;}
+.autocomplete-list{position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:240px;overflow-y:auto;z-index:100;margin-top:4px;}
+.autocomplete-item{padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f0f0;}
+.autocomplete-item:last-child{border-bottom:none;}
+.autocomplete-item:hover{background:var(--yellow-pale);}
 .modal-lg{max-width:900px;}
 .modal-header{padding:24px 28px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .modal-title{font-size:18px;font-weight:700;}
@@ -406,11 +410,12 @@ tr:hover td{background:var(--yellow-pale);}
 
 <!-- ADD/EDIT CALL -->
 <div class="modal-overlay" id="modal-call">
-  <div class="modal" id="modal-call-inner">
+  <div class="modal" id="modal-call-inner" style="max-width:920px">
     <div class="modal-header"><div class="modal-title" id="call-modal-title">הוסף שיחה</div><button class="modal-close" onclick="closeModal('modal-call')">×</button></div>
     <div class="modal-body"><div class="form-grid" id="call-form"></div></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
+      <button class="btn btn-secondary" id="btn-save-add-another" onclick="saveCall(true)">שמור והוסף עוד לאותו תלמיד</button>
       <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>
     </div>
   </div>
@@ -532,16 +537,16 @@ const DEFAULT_STUDENT_FIELDS = [
 ];
 
 const DEFAULT_CALL_FIELDS = [
-  {key:'fname',       label:'שם פרטי',    type:'text',     locked:true, required:true,  tableCol:true,  section:'main'},
-  {key:'lname',       label:'שם משפחה',   type:'text',     locked:true, required:true,  tableCol:true,  section:'main'},
-  {key:'phone',       label:'טלפון',      type:'phone',    locked:true, required:false, tableCol:true,  section:'main'},
+  {key:'fname',       label:'שם פרטי',    type:'text',     locked:true, required:false, tableCol:true,  section:'main', formHidden:true},
+  {key:'lname',       label:'שם משפחה',   type:'text',     locked:true, required:false, tableCol:false, section:'main', formHidden:true},
+  {key:'phone',       label:'טלפון',      type:'phone',    locked:true, required:false, tableCol:true,  section:'main', formHidden:true},
   {key:'datetime',    label:'תאריך ושעה', type:'datetime', locked:true, required:false, tableCol:true,  section:'main'},
-  {key:'caller',      label:'מבצע השיחה', type:'text',     locked:false,required:false, tableCol:true,  section:'main'},
-  {key:'direction',   label:'כיוון',      type:'select',   locked:false,required:false, tableCol:true,  section:'main', options:['received','initiated']},
+  {key:'caller',      label:'מבצע השיחה', type:'text',     locked:false,required:false, tableCol:false, section:'main'},
+  {key:'direction',   label:'כיוון',      type:'select',   locked:false,required:false, tableCol:false, section:'main', options:['received','initiated']},
   {key:'details',     label:'פרטי השיחה', type:'textarea', locked:false,required:false, tableCol:false, section:'main'},
   {key:'followup',    label:'מעקב',       type:'select',   locked:false,required:false, tableCol:true,  section:'followup', options:['yes','no']},
-  {key:'followup_date',label:'תאריך מעקב',type:'date',    locked:false,required:false, tableCol:true,  section:'followup'},
-  {key:'comments',    label:'הערות',      type:'textarea', locked:false,required:false, tableCol:false, section:'followup'},
+  {key:'followup_date',label:'תאריך מעקב',type:'date',    locked:false,required:false, tableCol:false, section:'followup', formHidden:true},
+  {key:'comments',    label:'הערות',      type:'textarea', locked:false,required:false, tableCol:false, section:'followup', formHidden:true},
 ];
 
 // ══════════════════════════════════════════
@@ -895,6 +900,12 @@ function openDetail(id){
   const sectionLabels={personal:'פרטי קשר',school:'מידע לימודי',parent:'הורה / אפוטרופוס',notes:'הערות',meta:'נתוני מערכת',custom:'נוספות'};
 
   let html='';
+  // Last call summary at the top
+  const allStudentCalls=calls.filter(c=>c.student_id===id).sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
+  if(allStudentCalls.length){
+    const last=allStudentCalls[0];
+    html+=`<div class="detail-section blue" style="margin-bottom:14px"><div class="detail-section-title">📞 שיחה אחרונה</div><div style="font-size:13px"><strong>${(last.datetime||'').substring(0,16).replace('T',' ')||'—'}</strong> · ${last.caller||''} <span style="color:var(--text3)">(${allStudentCalls.length} שיחות בסה"כ)</span></div></div>`;
+  }
   Object.entries(sections).forEach(([sec,fields])=>{
     const nonEmpty=fields.filter(f=>s[f.key]!==undefined&&s[f.key]!==''&&s[f.key]!==null);
     if(!nonEmpty.length) return;
@@ -1099,38 +1110,33 @@ async function deleteStudent(id){
 function renderCalls(){
   const q=(document.getElementById('call-search').value||'').toLowerCase();
   const ffu=document.getElementById('filter-followup').value;
-  const cols=tableFields(callFields);
-  document.getElementById('calls-thead').innerHTML=cols.map(f=>`<th>${f.label}</th>`).join('')+'<th>פעולות</th>';
+  // Fixed, clean columns: Student name, Date, Phone, Follow-up
+  document.getElementById('calls-thead').innerHTML='<th>שם התלמיד</th><th>תאריך ושעה</th><th>טלפון</th><th>מעקב</th><th>פעולות</th>';
   let filtered=calls.filter(c=>{
-    if(q&&!(`${c.fname||''} ${c.lname||''} ${c.phone||''} ${c.followup_date||''}`).toLowerCase().includes(q)) return false;
+    const ls=c.student_id?students.find(s=>s.id===c.student_id):null;
+    const nm=ls?`${ls.fname||''} ${ls.lname||''}`:`${c.fname||''} ${c.lname||''}`;
+    if(q&&!(`${nm} ${c.phone||''} ${c.followup_date||''}`).toLowerCase().includes(q)) return false;
     if(ffu==='yes'&&c.followup!=='yes') return false;
     if(ffu==='no'&&c.followup!=='no') return false;
     return true;
-  }).sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+  }).sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
   const tbody=document.getElementById('calls-tbody');
-  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${cols.length+1}"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
   tbody.innerHTML=filtered.map(c=>{
     const linkedStudent=c.student_id?students.find(s=>s.id===c.student_id):null;
     const displayName=linkedStudent?`${linkedStudent.fname||''} ${linkedStudent.lname||''}`.trim():`${c.fname||''} ${c.lname||''}`.trim();
-    const cells=cols.map(f=>{
-      const val=c[f.key];
-      if(f.key==='fname'||f.key==='lname') return`<td><strong>${displayName||'—'}</strong></td>`;
-      if(f.key==='direction') return`<td>${DIRECTION_MAP()[val]||val||'—'}</td>`;
-      if(f.key==='followup') return`<td>${val==='yes'?`<span style="color:var(--orange);font-weight:700">✓</span>`:''}</td>`;
-      if(f.key==='followup_date'){const ov=val&&isOverdue(val);return`<td style="${ov?'color:var(--red);font-weight:700':''}">${ov?'⚠️ ':''}${formatDate(val)||'—'}</td>`;}
-      if(f.key==='datetime') return`<td style="font-size:12px">${(val||'').substring(0,16)}</td>`;
-      return`<td>${val||'—'}</td>`;
-    });
-    // Deduplicate fname+lname
-    const seenName={};
-    const cellsHTML=cols.map((f,i)=>{
-      if(f.key==='lname'&&cols.find(x=>x.key==='fname')) return '';
-      return cells[i];
-    }).join('');
-    return`<tr>${cellsHTML}<td><div class="actions">
-      <button class="act-btn" onclick="openEditCall('${c.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
-      <button class="act-btn danger" onclick="deleteCall('${c.id}')">🗑</button>
-    </div></td></tr>`;
+    const phone=linkedStudent?(linkedStudent.phone1||c.phone||''):(c.phone||'');
+    const dt=(c.datetime||'').substring(0,16).replace('T',' ');
+    const fu=c.followup==='yes'?`<span style="color:var(--orange);font-weight:700">✓ ${formatDate(c.followup_date)||''}</span>`:'—';
+    return`<tr>
+      <td><strong>${displayName||'—'}</strong></td>
+      <td style="font-size:12px">${dt||'—'}</td>
+      <td dir="ltr" style="text-align:right">${phone||'—'}</td>
+      <td>${fu}</td>
+      <td><div class="actions">
+        <button class="act-btn" onclick="openEditCall('${c.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
+        <button class="act-btn danger" onclick="deleteCall('${c.id}')">🗑</button>
+      </div></td></tr>`;
   }).join('');
 }
 
@@ -1154,20 +1160,61 @@ function openEditCall(id){
 function addCallFromStudent(sid){openAddCall(sid);}
 
 function buildCallForm(c){
-  const studentOpts=`<option value="">— בחר תלמיד —</option>`+students.map(s=>`<option value="${s.id}"${c.student_id===s.id?'selected':''}>${s.fname||''} ${s.lname||''}</option>`).join('');
-  let html=`<div class="form-group full"><label class="form-label">תלמיד</label><select class="form-select" id="cf-student" onchange="prefillStudentCall()">${studentOpts}</select></div>`;
+  // Determine current student name for the search box
+  const curStudent=c.student_id?students.find(s=>s.id===c.student_id):null;
+  const curName=curStudent?`${curStudent.fname||''} ${curStudent.lname||''}`.trim():'';
+  // Autocomplete student search box + hidden id field
+  let html=`<div class="form-group full" style="position:relative">
+    <label class="form-label">תלמיד <span style="color:var(--red)">*</span></label>
+    <input type="text" class="form-input" id="cf-student-search" autocomplete="off" placeholder="הקלד שם לחיפוש..." value="${curName.replace(/"/g,'&quot;')}" oninput="onStudentSearchInput()" onfocus="onStudentSearchInput()"/>
+    <input type="hidden" id="cf-student" value="${c.student_id||''}"/>
+    <div id="cf-student-dropdown" class="autocomplete-list" style="display:none"></div>
+  </div>`;
   html+=`<div class="form-section-title">פרטי שיחה</div>`;
-  callFields.filter(f=>f.key!=='student_id').forEach(f=>{
-    if(f.key==='followup_date'){
-      html+=`<div class="form-group" id="cf-fudate-group" style="${c.followup!=='yes'?'opacity:.4':''}"><label class="form-label">${f.label}</label>${inputHTML(f,c)}</div>`;
-    } else if(f.key==='followup'){
+  // Only show the fields the user wants: caller, datetime, details, direction, followup
+  const visibleKeys=['caller','datetime','details','direction','followup'];
+  visibleKeys.forEach(key=>{
+    const f=callFields.find(x=>x.key===key)||DEFAULT_CALL_FIELDS.find(x=>x.key===key);
+    if(!f)return;
+    if(f.key==='followup'){
       html+=`<div class="form-group"><label class="form-label">${f.label}</label><select class="form-select" id="cf-followup" onchange="toggleFollowupDate()"><option value="no"${c.followup!=='yes'?'selected':''}>לא</option><option value="yes"${c.followup==='yes'?'selected':''}>כן</option></select></div>`;
+      html+=`<div class="form-group" id="cf-fudate-group" style="${c.followup!=='yes'?'display:none':''}"><label class="form-label">תאריך מעקב</label><input type="date" class="form-input" id="cf-followup_date" value="${c.followup_date||''}"/></div>`;
+    } else if(f.key==='caller'){
+      const callerVal=c.caller||(currentUser?(currentUser.fname||currentUser.username):'')||'Jaber';
+      html+=`<div class="form-group"><label class="form-label">${f.label}</label><input type="text" class="form-input" id="cf-caller" value="${(callerVal).replace(/"/g,'&quot;')}"/></div>`;
+    } else if(f.key==='direction'){
+      html+=`<div class="form-group"><label class="form-label">${f.label}</label><select class="form-select" id="cf-direction"><option value="initiated"${c.direction!=='received'?'selected':''}>יוצאת</option><option value="received"${c.direction==='received'?'selected':''}>נכנסת</option></select></div>`;
+    } else if(f.key==='datetime'){
+      html+=`<div class="form-group"><label class="form-label">${f.label}</label><input type="datetime-local" class="form-input" id="cf-datetime" value="${c.datetime?c.datetime.substring(0,16):''}"/></div>`;
+    } else if(f.key==='details'){
+      html+=`<div class="form-group full"><label class="form-label">${f.label}</label><textarea class="form-input" id="cf-details" rows="3">${c.details||''}</textarea></div>`;
     } else {
       const fullClass=(f.type==='textarea')?' full':'';
       html+=`<div class="form-group${fullClass}"><label class="form-label">${f.label}</label>${inputHTML(f,c)}</div>`;
     }
   });
   document.getElementById('call-form').innerHTML=html;
+}
+
+// Autocomplete for student search in call form
+function onStudentSearchInput(){
+  const box=document.getElementById('cf-student-search');
+  const dd=document.getElementById('cf-student-dropdown');
+  const hidden=document.getElementById('cf-student');
+  const q=(box.value||'').toLowerCase().trim();
+  let matches=students;
+  if(q) matches=students.filter(s=>`${s.fname||''} ${s.lname||''} ${s.phone1||''}`.toLowerCase().includes(q));
+  matches=matches.slice(0,8);
+  if(!matches.length){ dd.style.display='none'; if(!q) hidden.value=''; return; }
+  dd.innerHTML=matches.map(s=>`<div class="autocomplete-item" onclick="pickStudent('${s.id}')">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:12px">· ${s.phone1}</span>`:''}</div>`).join('');
+  dd.style.display='block';
+}
+function pickStudent(id){
+  const s=students.find(x=>x.id===id);
+  if(!s)return;
+  document.getElementById('cf-student').value=id;
+  document.getElementById('cf-student-search').value=`${s.fname||''} ${s.lname||''}`.trim();
+  document.getElementById('cf-student-dropdown').style.display='none';
 }
 
 function prefillStudentCall(){
@@ -1182,25 +1229,29 @@ function prefillStudentCall(){
 function toggleFollowupDate(){
   const v=document.getElementById('cf-followup');
   const grp=document.getElementById('cf-fudate-group');
-  if(v&&grp) grp.style.opacity=v.value==='yes'?'1':'.4';
+  if(v&&grp) grp.style.display=v.value==='yes'?'':'none';
 }
 
-async function saveCall(){
-  const data={student_id:document.getElementById('cf-student')?.value||''};
-  callFields.filter(f=>f.key!=='student_id').forEach(f=>{
-    const elById=document.getElementById(`cf-${f.key}`);
-    if(elById) data[f.key]=elById.value.trim?elById.value.trim():elById.value;
-  });
-  // Always sync name + phone from the linked student
-  const selStudent=students.find(s=>s.id===data.student_id);
-  if(selStudent){
-    data.fname=selStudent.fname||'';
-    data.lname=selStudent.lname||'';
-    if(!data.phone) data.phone=selStudent.phone1||'';
-  }
-  const fuEl=document.getElementById('cf-followup');
-  if(fuEl) data.followup=fuEl.value;
-  if(data.followup!=='yes') data.followup_date='';
+async function saveCall(addAnother){
+  const studentId=document.getElementById('cf-student')?.value||'';
+  // Require a student selection
+  const selStudent=students.find(s=>s.id===studentId);
+  if(!selStudent){ showError('יש לבחור תלמיד מהרשימה'); return; }
+
+  const getVal=id=>{const e=document.getElementById(id);return e?(e.value||'').trim():'';};
+  const data={
+    student_id:studentId,
+    fname:selStudent.fname||'',
+    lname:selStudent.lname||'',
+    phone:selStudent.phone1||'',
+    caller:getVal('cf-caller'),
+    datetime:getVal('cf-datetime'),
+    details:getVal('cf-details'),
+    direction:getVal('cf-direction')||'initiated',
+    followup:document.getElementById('cf-followup')?.value||'no',
+  };
+  data.followup_date=(data.followup==='yes')?getVal('cf-followup_date'):'';
+
   try{
     const saved=await saveCall_api(data, editingCallId);
     if(editingCallId){
@@ -1209,7 +1260,13 @@ async function saveCall(){
     } else {
       calls.unshift(saved);
     }
-    closeModal('modal-call'); renderCalls(); renderDashboard();
+    renderCalls(); renderDashboard();
+    if(addAnother && !editingCallId){
+      // Keep same student, reset call detail fields for a fresh entry
+      buildCallForm({student_id:studentId, datetime:new Date().toISOString().substring(0,16), direction:'initiated', followup:'no'});
+    } else {
+      closeModal('modal-call');
+    }
   }catch(e){ showError('שגיאה בשמירה: '+e.message); }
 }
 async function deleteCall(id){
