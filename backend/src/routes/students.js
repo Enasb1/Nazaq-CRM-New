@@ -55,8 +55,16 @@ router.post('/',
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
     try {
+      // Sanitize: convert empty strings to null (UUID/date columns reject "")
+      const cleaned = {};
+      for (const [k, v] of Object.entries(req.body)) {
+        cleaned[k] = (v === '') ? null : v;
+      }
+      // Default status if not provided (table has a CHECK constraint)
+      if (!cleaned.status) cleaned.status = 'new';
+
       const studentData = {
-        ...req.body,
+        ...cleaned,
         created_at: new Date().toISOString(),
         created_by: req.user.id
       };
@@ -79,7 +87,11 @@ router.post('/',
 // PUT /students/:id — update
 router.put('/:id', async (req, res) => {
   try {
-    const encrypted = encryptStudent({ ...req.body, updated_at: new Date().toISOString() });
+    const cleaned = {};
+    for (const [k, v] of Object.entries(req.body)) {
+      cleaned[k] = (v === '') ? null : v;
+    }
+    const encrypted = encryptStudent({ ...cleaned, updated_at: new Date().toISOString() });
     const { data, error } = await supabase.from('students').update(encrypted).eq('id', req.params.id).select().single();
     if (error || !data) return res.status(404).json({ error: 'Student not found' });
     await auditLog(req.user.id, req.user.username, `Updated student: ${data.fname} ${data.lname||''}`, 'edit', `Status: ${data.status}`);
