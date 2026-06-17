@@ -1282,26 +1282,30 @@ function renderCallHistoryBody(expandNew){
     </div>
   </div>`;
 
-  // History table of previous calls
+  // History of previous calls — card layout for full readable details
   html+=`<div class="form-section-title" style="margin-top:16px">היסטוריית שיחות (${studentCalls.length})</div>`;
   if(!studentCalls.length){
     html+=`<div style="font-size:13px;color:var(--text3);padding:8px">אין שיחות קודמות</div>`;
   } else {
-    html+=`<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>תאריך</th><th>מבצע</th><th>כיוון</th><th>פרטים</th><th>מעקב</th><th></th></tr></thead><tbody>`;
-    studentCalls.forEach(c=>{
+    html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
+    studentCalls.forEach((c,idx)=>{
       const dt=(c.datetime||'').substring(0,16).replace('T',' ');
       const dir=DIRECTION_MAP()[c.direction]||c.direction||'';
-      const fu=c.followup==='yes'?`✓ ${formatDate(c.followup_date)||''}`:'—';
-      html+=`<tr>
-        <td style="font-size:12px;white-space:nowrap">${dt||'—'}</td>
-        <td style="font-size:12px">${c.caller||'—'}</td>
-        <td style="font-size:12px">${dir}</td>
-        <td style="font-size:13px">${c.details||'—'}</td>
-        <td style="font-size:12px;color:var(--orange)">${fu}</td>
-        <td><button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button></td>
-      </tr>`;
+      const over=c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date);
+      html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong style="font-size:13px">📅 ${dt||'—'}</strong>
+            <span style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:6px">${dir}</span>
+            <span style="font-size:11px;color:var(--text3)">👤 ${c.caller||'—'}</span>
+          </div>
+          <button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button>
+        </div>
+        <div style="font-size:13px;line-height:1.5;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word">${c.details?c.details:'<span style="color:var(--text3)">אין פרטים</span>'}</div>
+        ${c.followup==='yes'?`<div style="font-size:12px;margin-top:6px;color:${over?'var(--red)':'var(--orange)'};font-weight:600">⏰ מעקב: ${formatDate(c.followup_date)||''}${over?' (באיחור)':''}</div>`:''}
+      </div>`;
     });
-    html+=`</tbody></table></div>`;
+    html+=`</div>`;
   }
   document.getElementById('call-form').innerHTML=html;
 }
