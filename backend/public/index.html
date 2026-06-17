@@ -413,7 +413,7 @@ tr:hover td{background:var(--yellow-pale);}
   <div class="modal" id="modal-call-inner" style="max-width:920px">
     <div class="modal-header"><div class="modal-title" id="call-modal-title">הוסף שיחה</div><button class="modal-close" onclick="closeModal('modal-call')">×</button></div>
     <div class="modal-body"><div class="form-grid" id="call-form"></div></div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="call-modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
       <button class="btn btn-secondary" id="btn-save-add-another" onclick="saveCall(true)">שמור והוסף עוד לאותו תלמיד</button>
       <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>
@@ -1110,50 +1110,74 @@ async function deleteStudent(id){
 function renderCalls(){
   const q=(document.getElementById('call-search').value||'').toLowerCase();
   const ffu=document.getElementById('filter-followup').value;
-  // Fixed, clean columns: Student name, Date, Phone, Follow-up
-  document.getElementById('calls-thead').innerHTML='<th>שם התלמיד</th><th>תאריך ושעה</th><th>טלפון</th><th>מעקב</th><th>פעולות</th>';
-  let filtered=calls.filter(c=>{
-    const ls=c.student_id?students.find(s=>s.id===c.student_id):null;
-    const nm=ls?`${ls.fname||''} ${ls.lname||''}`:`${c.fname||''} ${c.lname||''}`;
-    if(q&&!(`${nm} ${c.phone||''} ${c.followup_date||''}`).toLowerCase().includes(q)) return false;
-    if(ffu==='yes'&&c.followup!=='yes') return false;
-    if(ffu==='no'&&c.followup!=='no') return false;
+  // Group calls by student — one line per student, showing latest call
+  document.getElementById('calls-thead').innerHTML='<th>שם התלמיד</th><th>תאריך שיחה אחרונה</th><th>טלפון</th><th>מעקב</th><th>פעולות</th>';
+  const groups={};
+  calls.forEach(c=>{
+    const key=c.student_id||('x_'+(c.phone||c.id));
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(c);
+  });
+  let rows=Object.entries(groups).map(([key,list])=>{
+    list.sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
+    const latest=list[0];
+    const ls=latest.student_id?students.find(s=>s.id===latest.student_id):null;
+    const name=ls?`${ls.fname||''} ${ls.lname||''}`.trim():`${latest.fname||''} ${latest.lname||''}`.trim();
+    const phone=ls?(ls.phone1||latest.phone||''):(latest.phone||'');
+    return {key, studentId:latest.student_id, list, latest, name, phone};
+  });
+  // Filter
+  rows=rows.filter(r=>{
+    if(q&&!(`${r.name} ${r.phone}`).toLowerCase().includes(q)) return false;
+    const anyFu=r.list.some(c=>c.followup==='yes');
+    if(ffu==='yes'&&!anyFu) return false;
+    if(ffu==='no'&&anyFu) return false;
     return true;
-  }).sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
+  }).sort((a,b)=>new Date(b.latest.datetime||b.latest.created_at)-new Date(a.latest.datetime||a.latest.created_at));
   const tbody=document.getElementById('calls-tbody');
-  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
-  tbody.innerHTML=filtered.map(c=>{
-    const linkedStudent=c.student_id?students.find(s=>s.id===c.student_id):null;
-    const displayName=linkedStudent?`${linkedStudent.fname||''} ${linkedStudent.lname||''}`.trim():`${c.fname||''} ${c.lname||''}`.trim();
-    const phone=linkedStudent?(linkedStudent.phone1||c.phone||''):(c.phone||'');
-    const dt=(c.datetime||'').substring(0,16).replace('T',' ');
-    const fu=c.followup==='yes'?`<span style="color:var(--orange);font-weight:700">✓ ${formatDate(c.followup_date)||''}</span>`:'—';
-    return`<tr>
-      <td><strong>${displayName||'—'}</strong></td>
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
+  tbody.innerHTML=rows.map(r=>{
+    const dt=(r.latest.datetime||'').substring(0,16).replace('T',' ');
+    const anyFu=r.list.some(c=>c.followup==='yes');
+    const fuCall=r.list.find(c=>c.followup==='yes'&&c.followup_date);
+    const fu=anyFu?`<span style="color:var(--orange);font-weight:700">✓ ${fuCall?formatDate(fuCall.followup_date):''}</span>`:'—';
+    const editTarget=r.studentId?`openStudentCallHistory('${r.studentId}')`:`openEditCall('${r.latest.id}')`;
+    return`<tr style="cursor:pointer" onclick="${editTarget}">
+      <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span></td>
       <td style="font-size:12px">${dt||'—'}</td>
-      <td dir="ltr" style="text-align:right">${phone||'—'}</td>
+      <td dir="ltr" style="text-align:right">${r.phone||'—'}</td>
       <td>${fu}</td>
-      <td><div class="actions">
-        <button class="act-btn" onclick="openEditCall('${c.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
-        <button class="act-btn danger" onclick="deleteCall('${c.id}')">🗑</button>
+      <td><div class="actions" onclick="event.stopPropagation()">
+        <button class="act-btn" onclick="${editTarget}">✏️ <span style="font-size:11px">${t('edit')}</span></button>
       </div></td></tr>`;
   }).join('');
 }
 
 function openAddCall(studentId){
+  // If a student is already chosen, go straight to their call history view
+  if(studentId){ openStudentCallHistory(studentId); return; }
   editingCallId=null;
   document.getElementById('call-modal-title').textContent=t('add_call');
   document.getElementById('modal-call-inner').classList.remove('edit-mode');
-  const s=studentId?students.find(x=>x.id===studentId):null;
-  buildCallForm({fname:s?.fname||'',lname:s?.lname||'',phone:s?.phone1||'',student_id:studentId||'',datetime:new Date().toISOString().substring(0,16),direction:'initiated',followup:'no'});
+  // Restore the add-call footer (may have been replaced by history view)
+  document.getElementById('call-modal-footer').innerHTML=`
+      <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
+      <button class="btn btn-secondary" id="btn-save-add-another" onclick="saveCall(true)">שמור והוסף עוד לאותו תלמיד</button>
+      <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>`;
+  buildCallForm({datetime:new Date().toISOString().substring(0,16),direction:'initiated',followup:'no'});
   document.getElementById('modal-call').classList.add('open');
 }
 function openEditCall(id){
   const c=calls.find(x=>x.id===id);
   if(!c)return;
+  // If linked to a student, open the student history view instead
+  if(c.student_id){ openStudentCallHistory(c.student_id); return; }
   editingCallId=id;
   document.getElementById('call-modal-title').textContent=t('edit');
   document.getElementById('modal-call-inner').classList.add('edit-mode');
+  document.getElementById('call-modal-footer').innerHTML=`
+      <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
+      <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>`;
   buildCallForm(c);
   document.getElementById('modal-call').classList.add('open');
 }
@@ -1215,6 +1239,116 @@ function pickStudent(id){
   document.getElementById('cf-student').value=id;
   document.getElementById('cf-student-search').value=`${s.fname||''} ${s.lname||''}`.trim();
   document.getElementById('cf-student-dropdown').style.display='none';
+}
+
+// ── Student call history popup (one entry per student) ──
+let historyStudentId=null;
+function openStudentCallHistory(studentId){
+  historyStudentId=studentId;
+  const s=students.find(x=>x.id===studentId);
+  if(!s)return;
+  document.getElementById('call-modal-title').textContent=`שיחות — ${s.fname||''} ${s.lname||''}`.trim();
+  document.getElementById('call-modal-footer').innerHTML=`<button class="btn btn-secondary" onclick="closeModal('modal-call')">סגור</button>`;
+  renderCallHistoryBody(false);
+  document.getElementById('modal-call').classList.add('open');
+}
+
+function renderCallHistoryBody(expandNew){
+  const s=students.find(x=>x.id===historyStudentId);
+  if(!s)return;
+  const callerVal=(currentUser?(currentUser.fname||currentUser.username):'')||'';
+  const studentCalls=calls.filter(c=>c.student_id===historyStudentId)
+    .sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
+
+  let html=`<div class="form-group full"><label class="form-label">תלמיד</label>
+    <div style="padding:10px 14px;background:var(--bg);border-radius:10px;font-weight:600">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:13px">· ${s.phone1}</span>`:''}</div>
+  </div>`;
+
+  // Collapsible "new call" section
+  html+=`<div class="form-group full" style="margin-top:8px">
+    <button type="button" onclick="toggleNewCall()" id="new-call-toggle" style="width:100%;text-align:right;background:var(--yellow-pale);border:1px solid #E8D98A;border-radius:10px;padding:12px 14px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:14px;display:flex;justify-content:space-between;align-items:center">
+      <span>➕ שיחה חדשה</span><span id="new-call-arrow">${expandNew?'▲':'▼'}</span>
+    </button>
+    <div id="new-call-body" style="display:${expandNew?'block':'none'};padding:14px;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">מבצע השיחה</label><input type="text" class="form-input" id="nc-caller" value="${callerVal.replace(/"/g,'&quot;')}"/></div>
+        <div class="form-group"><label class="form-label">תאריך ושעה</label><input type="datetime-local" class="form-input" id="nc-datetime" value="${new Date().toISOString().substring(0,16)}"/></div>
+        <div class="form-group"><label class="form-label">כיוון</label><select class="form-select" id="nc-direction"><option value="initiated">יוצאת</option><option value="received">נכנסת</option></select></div>
+        <div class="form-group"><label class="form-label">מעקב</label><select class="form-select" id="nc-followup" onchange="toggleNcFollowup()"><option value="no">לא</option><option value="yes">כן</option></select></div>
+        <div class="form-group full"><label class="form-label">פרטי השיחה</label><textarea class="form-input" id="nc-details" rows="3"></textarea></div>
+        <div class="form-group" id="nc-fudate-group" style="display:none"><label class="form-label">תאריך מעקב</label><input type="date" class="form-input" id="nc-followup_date"/></div>
+      </div>
+      <button class="btn btn-primary" onclick="addCallToHistory()" style="margin-top:8px">שמור שיחה</button>
+    </div>
+  </div>`;
+
+  // History table of previous calls
+  html+=`<div class="form-section-title" style="margin-top:16px">היסטוריית שיחות (${studentCalls.length})</div>`;
+  if(!studentCalls.length){
+    html+=`<div style="font-size:13px;color:var(--text3);padding:8px">אין שיחות קודמות</div>`;
+  } else {
+    html+=`<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>תאריך</th><th>מבצע</th><th>כיוון</th><th>פרטים</th><th>מעקב</th><th></th></tr></thead><tbody>`;
+    studentCalls.forEach(c=>{
+      const dt=(c.datetime||'').substring(0,16).replace('T',' ');
+      const dir=DIRECTION_MAP()[c.direction]||c.direction||'';
+      const fu=c.followup==='yes'?`✓ ${formatDate(c.followup_date)||''}`:'—';
+      html+=`<tr>
+        <td style="font-size:12px;white-space:nowrap">${dt||'—'}</td>
+        <td style="font-size:12px">${c.caller||'—'}</td>
+        <td style="font-size:12px">${dir}</td>
+        <td style="font-size:13px">${c.details||'—'}</td>
+        <td style="font-size:12px;color:var(--orange)">${fu}</td>
+        <td><button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button></td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+  document.getElementById('call-form').innerHTML=html;
+}
+
+function toggleNewCall(){
+  const body=document.getElementById('new-call-body');
+  const arrow=document.getElementById('new-call-arrow');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  arrow.textContent=open?'▲':'▼';
+}
+function toggleNcFollowup(){
+  const v=document.getElementById('nc-followup').value;
+  document.getElementById('nc-fudate-group').style.display=v==='yes'?'':'none';
+}
+
+async function addCallToHistory(){
+  const s=students.find(x=>x.id===historyStudentId);
+  if(!s)return;
+  const getVal=id=>{const e=document.getElementById(id);return e?(e.value||'').trim():'';};
+  const followup=document.getElementById('nc-followup')?.value||'no';
+  const data={
+    student_id:historyStudentId,
+    fname:s.fname||'', lname:s.lname||'', phone:s.phone1||'',
+    caller:getVal('nc-caller'),
+    datetime:getVal('nc-datetime'),
+    direction:getVal('nc-direction')||'initiated',
+    details:getVal('nc-details'),
+    followup,
+    followup_date:followup==='yes'?getVal('nc-followup_date'):''
+  };
+  try{
+    const saved=await api('POST','/api/calls',data);
+    calls.unshift(saved);
+    renderCallHistoryBody(false); // collapse new-call, refresh history
+    renderCalls(); renderDashboard();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+
+async function deleteCallFromHistory(id){
+  if(!confirm('למחוק שיחה זו?'))return;
+  try{
+    await api('DELETE','/api/calls/'+id);
+    calls=calls.filter(c=>c.id!==id);
+    renderCallHistoryBody(false);
+    renderCalls(); renderDashboard();
+  }catch(e){ showError('שגיאה במחיקה: '+e.message); }
 }
 
 function prefillStudentCall(){
