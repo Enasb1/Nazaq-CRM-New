@@ -1081,9 +1081,11 @@ function renderCalls(){
   const tbody=document.getElementById('calls-tbody');
   if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${cols.length+1}"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
   tbody.innerHTML=filtered.map(c=>{
+    const linkedStudent=c.student_id?students.find(s=>s.id===c.student_id):null;
+    const displayName=linkedStudent?`${linkedStudent.fname||''} ${linkedStudent.lname||''}`.trim():`${c.fname||''} ${c.lname||''}`.trim();
     const cells=cols.map(f=>{
       const val=c[f.key];
-      if(f.key==='fname'||f.key==='lname') return`<td><strong>${c.fname||''} ${c.lname||''}</strong></td>`;
+      if(f.key==='fname'||f.key==='lname') return`<td><strong>${displayName||'—'}</strong></td>`;
       if(f.key==='direction') return`<td>${DIRECTION_MAP()[val]||val||'—'}</td>`;
       if(f.key==='followup') return`<td>${val==='yes'?`<span style="color:var(--orange);font-weight:700">✓</span>`:''}</td>`;
       if(f.key==='followup_date'){const ov=val&&isOverdue(val);return`<td style="${ov?'color:var(--red);font-weight:700':''}">${ov?'⚠️ ':''}${formatDate(val)||'—'}</td>`;}
@@ -1123,7 +1125,7 @@ function openEditCall(id){
 function addCallFromStudent(sid){openAddCall(sid);}
 
 function buildCallForm(c){
-  const studentOpts=students.map(s=>`<option value="${s.id}"${c.student_id===s.id?'selected':''}>${s.fname||''} ${s.lname||''}</option>`).join('');
+  const studentOpts=`<option value="">— בחר תלמיד —</option>`+students.map(s=>`<option value="${s.id}"${c.student_id===s.id?'selected':''}>${s.fname||''} ${s.lname||''}</option>`).join('');
   let html=`<div class="form-group full"><label class="form-label">תלמיד</label><select class="form-select" id="cf-student" onchange="prefillStudentCall()">${studentOpts}</select></div>`;
   html+=`<div class="form-section-title">פרטי שיחה</div>`;
   callFields.filter(f=>f.key!=='student_id').forEach(f=>{
@@ -1160,6 +1162,13 @@ async function saveCall(){
     const elById=document.getElementById(`cf-${f.key}`);
     if(elById) data[f.key]=elById.value.trim?elById.value.trim():elById.value;
   });
+  // Always sync name + phone from the linked student
+  const selStudent=students.find(s=>s.id===data.student_id);
+  if(selStudent){
+    data.fname=selStudent.fname||'';
+    data.lname=selStudent.lname||'';
+    if(!data.phone) data.phone=selStudent.phone1||'';
+  }
   const fuEl=document.getElementById('cf-followup');
   if(fuEl) data.followup=fuEl.value;
   if(data.followup!=='yes') data.followup_date='';
