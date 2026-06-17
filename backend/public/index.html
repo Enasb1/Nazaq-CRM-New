@@ -986,7 +986,8 @@ function fieldFormGroup(f,s,semOpts,req){
 }
 
 function inputHTML(f,s,semOpts){
-  const val=s[f.key]!==undefined?s[f.key]:'';
+  const raw=s[f.key];
+  const val=(raw===undefined||raw===null)?'':raw;
   const id=`sf-${f.key}`;
   if(f.key==='status'){
     return`<select class="form-select" id="${id}">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select>`;

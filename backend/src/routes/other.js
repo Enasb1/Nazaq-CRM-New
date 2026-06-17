@@ -10,20 +10,33 @@ semRouter.use(requireAuth);
 
 semRouter.get('/', async (req, res) => {
   const { data, error } = await supabase.from('semesters').select('*').order('start_date', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error('[SEMESTERS] Supabase error:', error.message, '| details:', error.details, '| hint:', error.hint);
+    return res.status(500).json({ error: error.message });
+  }
   res.json(data || []);
 });
 
 semRouter.post('/', requireAdmin, async (req, res) => {
-  const { data, error } = await supabase.from('semesters').insert({ ...req.body, created_by: req.user.id }).select().single();
-  if (error) return res.status(500).json({ error: error.message });
+  const cleaned = {};
+  for (const [k, v] of Object.entries(req.body)) cleaned[k] = (v === '') ? null : v;
+  const { data, error } = await supabase.from('semesters').insert({ ...cleaned, created_by: req.user.id }).select().single();
+  if (error) {
+    console.error('[SEMESTER CREATE] error:', error.message, '| details:', error.details);
+    return res.status(500).json({ error: error.message });
+  }
   await auditLog(req.user.id, req.user.username, `Created semester: ${req.body.name}`, 'create');
   res.status(201).json(data);
 });
 
 semRouter.put('/:id', requireAdmin, async (req, res) => {
-  const { data, error } = await supabase.from('semesters').update(req.body).eq('id', req.params.id).select().single();
-  if (error) return res.status(500).json({ error: error.message });
+  const cleaned = {};
+  for (const [k, v] of Object.entries(req.body)) cleaned[k] = (v === '') ? null : v;
+  const { data, error } = await supabase.from('semesters').update(cleaned).eq('id', req.params.id).select().single();
+  if (error) {
+    console.error('[SEMESTER UPDATE] error:', error.message, '| details:', error.details);
+    return res.status(500).json({ error: error.message });
+  }
   await auditLog(req.user.id, req.user.username, `Updated semester: ${data.name}`, 'edit');
   res.json(data);
 });
