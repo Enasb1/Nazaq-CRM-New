@@ -38,14 +38,19 @@ router.get('/:id', async (req, res) => {
 // POST /calls — create (also used by Android app)
 router.post('/', async (req, res) => {
   try {
+    const cleaned = {};
+    for (const [k, v] of Object.entries(req.body)) cleaned[k] = (v === '') ? null : v;
     const callData = {
-      ...req.body,
+      ...cleaned,
       created_at: new Date().toISOString(),
       created_by: req.user.id,
       caller: req.body.caller || req.user.username
     };
     const { data, error } = await supabase.from('calls').insert(callData).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error('[CREATE CALL] Supabase error:', error.message, '| details:', error.details, '| hint:', error.hint);
+      throw error;
+    }
     await auditLog(req.user.id, req.user.username, `Logged call: ${req.body.fname||''} ${req.body.lname||''}`, 'create', `Phone: ${req.body.phone}`);
     res.status(201).json(data);
   } catch (err) {
@@ -57,7 +62,9 @@ router.post('/', async (req, res) => {
 // PUT /calls/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase.from('calls').update({ ...req.body, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+    const cleaned = {};
+    for (const [k, v] of Object.entries(req.body)) cleaned[k] = (v === '') ? null : v;
+    const { data, error } = await supabase.from('calls').update({ ...cleaned, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
     if (error || !data) return res.status(404).json({ error: 'Call not found' });
     await auditLog(req.user.id, req.user.username, `Updated call record`, 'edit', `ID: ${req.params.id}`);
     res.json(data);
