@@ -241,7 +241,12 @@ tr:hover td{background:var(--yellow-pale);}
     <div class="login-title">NazAQ CRM</div>
     <div class="login-sub">مركز الناصرة للتأهيل</div>
     <div class="login-field"><label id="lbl-user">שם משתמש</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
-    <div class="login-field"><label id="lbl-pass">סיסמה</label><input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password"/></div>
+    <div class="login-field"><label id="lbl-pass">סיסמה</label>
+      <div style="position:relative">
+        <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" dir="ltr" style="text-align:left;padding-left:42px"/>
+        <button type="button" id="toggle-pass" onclick="togglePassword()" tabindex="-1" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:4px;line-height:1">👁️</button>
+      </div>
+    </div>
     <button class="login-btn" onclick="doLogin()">כניסה</button>
     <div class="login-error" id="login-error"></div>
   </div>
@@ -671,6 +676,29 @@ async function doLogin(){
     errEl.textContent='❌ '+e.message;
   }
 }
+let passHideTimer=null;
+function togglePassword(){
+  const inp=document.getElementById('login-pass');
+  const btn=document.getElementById('toggle-pass');
+  if(inp.type==='password'){
+    inp.type='text';
+    btn.textContent='🙈';
+    clearTimeout(passHideTimer);
+    passHideTimer=setTimeout(()=>{ inp.type='password'; btn.textContent='👁️'; },5000);
+  } else {
+    inp.type='password';
+    btn.textContent='👁️';
+    clearTimeout(passHideTimer);
+  }
+}
+// Reset the 5s auto-hide timer whenever the user types
+document.getElementById('login-pass').addEventListener('input',()=>{
+  const inp=document.getElementById('login-pass');
+  if(inp.type==='text'){
+    clearTimeout(passHideTimer);
+    passHideTimer=setTimeout(()=>{ inp.type='password'; document.getElementById('toggle-pass').textContent='👁️'; },5000);
+  }
+});
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function doLogout(){
@@ -719,11 +747,12 @@ function semBadgeHTML(semId){
 // Which semesters are selectable when adding/editing a student:
 // last 2 + future 4 (relative to today)
 function selectableSemesters(){
-  const today=new Date();
-  const sorted=[...semesters].sort((a,b)=>new Date(a.start)-new Date(b.start));
-  const past=sorted.filter(s=>new Date(s.start)<=today);
-  const future=sorted.filter(s=>new Date(s.start)>today);
-  return [...past.slice(-2),...future.slice(0,4)];
+  // Show all semesters, most recently created first; safe against missing dates
+  return [...semesters].sort((a,b)=>{
+    const ad=new Date(a.start_date||a.created_at||0);
+    const bd=new Date(b.start_date||b.created_at||0);
+    return bd-ad;
+  });
 }
 
 function updateBadge(){
@@ -791,9 +820,9 @@ function renderStudents(){
   const fstatus=document.getElementById('filter-status').value;
   const fsem=document.getElementById('filter-semester').value;
   const cols=tableFields(studentFields);
-  // Build header
+  // Build header — skip lname since fname+lname are merged into one cell
   const thead=document.getElementById('students-thead');
-  thead.innerHTML='<th></th>'+cols.map(f=>`<th>${f.label}</th>`).join('')+'<th>פעולות</th>';
+  thead.innerHTML='<th></th>'+cols.filter(f=>f.key!=='lname').map(f=>`<th>${f.key==='fname'?'שם':f.label}</th>`).join('')+'<th>פעולות</th>';
   let filtered=students.filter(s=>{
     if(q&&!(`${s.fname||''} ${s.lname||''} ${s.phone1||''} ${s.phone2||''} ${s.id_number||''} ${s.email||''}`).toLowerCase().includes(q))return false;
     if(fstatus&&s.status!==fstatus)return false;
