@@ -359,6 +359,7 @@ tr:hover td{background:var(--yellow-pale);}
       <div class="section-header">
         <div class="section-title">🩺 קורס הכשרת רופאים</div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" id="btn-import-doctors" onclick="openImportDoctors()">📥 ייבוא מאקסל</button>
           <button class="btn btn-secondary" id="btn-add-dr-course" onclick="openAddDrCourse()">＋ קורס חדש</button>
           <button class="btn btn-primary" id="btn-add-doctor" onclick="openAddDoctor()">＋ הוסף רופא</button>
         </div>
@@ -462,6 +463,25 @@ tr:hover td{background:var(--yellow-pale);}
 
 <!-- ADD/EDIT SEMESTER -->
 <!-- DOCTOR COURSE MODAL -->
+<!-- DOCTOR IMPORT MODAL -->
+<div class="modal-overlay" id="modal-import-doctors">
+  <div class="modal modal-wide">
+    <div class="modal-header"><div class="modal-title">📥 ייבוא רופאים מאקסל</div><button class="modal-close" onclick="closeModal('modal-import-doctors')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group full"><label class="form-label">בחר קורס לייבוא <span style="color:var(--red)">*</span></label><select class="form-select" id="import-course"></select></div>
+      <div class="form-group full"><label class="form-label">קובץ אקסל (.xlsx)</label><input type="file" class="form-input" id="import-file" accept=".xlsx,.xls" onchange="parseImportFile()"/></div>
+      <div class="form-group full" style="font-size:12px;color:var(--text3)">
+        עמודות צפויות: משפחה, שם פרטי, עיר, ת"ז, וואטספ, נייד, נייד אחר (הורה), אימייל, ארץ דיפלומה, שנת סיום, תאריך הרשמה
+      </div>
+      <div class="form-group full" id="import-preview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-import-doctors')">ביטול</button>
+      <button class="btn btn-primary" id="btn-do-import" onclick="doImportDoctors()" style="display:none">ייבא רופאים</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-dr-course">
   <div class="modal" style="max-width:560px">
     <div class="modal-header"><div class="modal-title">קורס הכשרת רופאים</div><button class="modal-close" onclick="closeModal('modal-dr-course')">×</button></div>
@@ -2052,6 +2072,127 @@ async function saveDoctor(){
   }catch(e){ showError('שגיאה בשמירה: '+e.message); }
 }
 async function deleteDoctor(id){ if(!confirm('למחוק רופא זה?'))return; try{ await api('DELETE','/api/doctors/'+id); doctors=doctors.filter(d=>d.id!==id); renderDoctors(); }catch(e){ showError(e.message); } }
+
+// ── Excel import ──
+let _importRows=[];
+function openImportDoctors(){
+  if(!drCourses.length){ showError('צור קודם קורס'); return; }
+  document.getElementById('import-course').innerHTML=drCourses.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('import-file').value='';
+  document.getElementById('import-preview').innerHTML='';
+  document.getElementById('btn-do-import').style.display='none';
+  _importRows=[];
+  document.getElementById('modal-import-doctors').classList.add('open');
+}
+function splitParent(text){
+  if(!text) return {name:'',phone:''};
+  const str=String(text).trim();
+  const phoneMatch=str.match(/[\d][\d\-\s]{6,}\d/);
+  if(phoneMatch){
+    const phone=phoneMatch[0].replace(/\s/g,'').trim();
+    const name=str.replace(phoneMatch[0],'').replace(/[-–]\s*$/,'').trim();
+    return {name,phone};
+  }
+  return {name:str,phone:''};
+}
+function normalizePhone(v){
+  if(v===null||v===undefined||v==='') return '';
+  let s=String(v).trim();
+  if(/e\+/i.test(s)){ const n=Number(s); if(!isNaN(n)) s=n.toFixed(0); }
+  return s;
+}
+function parseImportFile(){
+  const file=document.getElementById('import-file').files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+      let headerIdx=rows.findIndex(r=>r.some(c=>String(c).includes('משפחה'))&&r.some(c=>String(c).includes('שם')));
+      if(headerIdx<0) headerIdx=0;
+      const headers=rows[headerIdx].map(h=>String(h).trim());
+      const col=name=>headers.findIndex(h=>h.includes(name));
+      const idx={
+        lname:col('משפחה'), fname:col('שם פרטי'), city:col('עיר'),
+        id:headers.findIndex(h=>h.includes('ת"ז')||h.includes('ת.ז')||h.includes('תז')),
+        whatsapp:col('וואטס'), mobile:headers.findIndex(h=>h.trim()==='נייד'),
+        other:headers.findIndex(h=>h.includes('נייד אחר')||h.includes('אחר')),
+        email:col('אימייל'),
+        diploma:col('דיפלומה')>=0?col('דיפלומה'):col('דפלומה'),
+        gradyear:col('שנת סיום'), regdate:col('תאריך הרשמה')
+      };
+      const dataRows=rows.slice(headerIdx+1).filter(r=>r.some(c=>String(c).trim()));
+      _importRows=dataRows.map(r=>{
+        const parent=splitParent(idx.other>=0?r[idx.other]:'');
+        const phone1=normalizePhone(idx.whatsapp>=0?r[idx.whatsapp]:'');
+        const phone2=normalizePhone(idx.mobile>=0&&idx.mobile!==idx.whatsapp?r[idx.mobile]:'');
+        return {
+          fname:String(idx.fname>=0?r[idx.fname]:'').trim(),
+          lname:String(idx.lname>=0?r[idx.lname]:'').trim(),
+          city:String(idx.city>=0?r[idx.city]:'').trim(),
+          id_number:normalizePhone(idx.id>=0?r[idx.id]:''),
+          phone1, phone2,
+          email:String(idx.email>=0?r[idx.email]:'').trim(),
+          diploma_country:String(idx.diploma>=0?r[idx.diploma]:'').trim(),
+          grad_year:String(idx.gradyear>=0?r[idx.gradyear]:'').trim(),
+          parent_name:parent.name, parent_phone:parent.phone,
+          _regdate_raw:String(idx.regdate>=0?r[idx.regdate]:'').trim()
+        };
+      }).filter(d=>d.fname||d.lname);
+      showImportPreview();
+    }catch(err){ showError('שגיאה בקריאת הקובץ: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function parseDate(raw){
+  if(!raw)return null;
+  const s=String(raw).trim();
+  const parts=s.split(/[\/\.\-]/).map(x=>x.trim());
+  if(parts.length===3){
+    let [d,m,y]=parts;
+    if(y.length===2)y='20'+y;
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  return null;
+}
+function showImportPreview(){
+  const el=document.getElementById('import-preview');
+  if(!_importRows.length){ el.innerHTML=`<div style="color:var(--red)">לא נמצאו שורות תקינות בקובץ</div>`; document.getElementById('btn-do-import').style.display='none'; return; }
+  const missing=_importRows.filter(d=>!d.fname||!d.lname||!d.id_number||!d.phone1||!d.email||!d.diploma_country||!d.grad_year);
+  el.innerHTML=`<div style="margin-bottom:8px;font-weight:700">נמצאו ${_importRows.length} רופאים${missing.length?` <span style="color:var(--orange)">(${missing.length} חסרים שדות חובה — מסומנים באדום)</span>`:''}</div>
+    <div style="overflow-x:auto;max-height:300px;border:1px solid var(--border);border-radius:10px">
+    <table class="data-table" style="width:100%;font-size:12px"><thead><tr><th>שם</th><th>ת.ז</th><th>וואטסאפ</th><th>אימייל</th><th>ארץ דיפלומה</th><th>הורה</th></tr></thead><tbody>
+    ${_importRows.slice(0,50).map(d=>{
+      const incomplete=!d.fname||!d.lname||!d.id_number||!d.phone1||!d.email||!d.diploma_country||!d.grad_year;
+      return`<tr style="${incomplete?'background:var(--red-bg)':''}"><td>${d.fname} ${d.lname}</td><td>${d.id_number||'—'}</td><td dir="ltr">${d.phone1||'—'}</td><td dir="ltr">${d.email||'—'}</td><td>${d.diploma_country||'—'}</td><td style="font-size:11px">${d.parent_name||''} ${d.parent_phone||''}</td></tr>`;
+    }).join('')}
+    </tbody></table></div>
+    ${_importRows.length>50?`<div style="font-size:11px;color:var(--text3);margin-top:4px">מציג 50 ראשונים מתוך ${_importRows.length}</div>`:''}`;
+  document.getElementById('btn-do-import').style.display='inline-flex';
+}
+async function doImportDoctors(){
+  const courseId=document.getElementById('import-course').value;
+  if(!courseId){ showError('בחר קורס'); return; }
+  if(!_importRows.length){ showError('אין נתונים לייבוא'); return; }
+  const payload=_importRows.map(d=>({
+    course_id:courseId,
+    fname:d.fname, lname:d.lname, city:d.city, id_number:d.id_number,
+    phone1:d.phone1, phone2:d.phone2, email:d.email,
+    diploma_country:d.diploma_country, grad_year:d.grad_year,
+    parent_name:d.parent_name, parent_phone:d.parent_phone,
+    reg_date:parseDate(d._regdate_raw)
+  }));
+  try{
+    document.getElementById('btn-do-import').textContent='מייבא...';
+    const res=await api('POST','/api/doctors/bulk',{doctors:payload});
+    closeModal('modal-import-doctors');
+    await loadDoctorData();
+    showError(`✓ יובאו ${res.imported} רופאים בהצלחה`);
+  }catch(e){ showError('שגיאה בייבוא: '+e.message); }
+  finally{ document.getElementById('btn-do-import').textContent='ייבא רופאים'; }
+}
 
 // ── Dashboard 2: payments ──
 function renderDoctorPayments(){

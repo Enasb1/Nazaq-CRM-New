@@ -71,6 +71,25 @@ router.delete('/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── BULK IMPORT ───────────────────────────────────────
+router.post('/bulk', async (req, res) => {
+  const rows = Array.isArray(req.body.doctors) ? req.body.doctors : [];
+  if (!rows.length) return res.status(400).json({ error: 'No rows to import' });
+  const prepared = rows.map(r => {
+    const c = clean(r);
+    return { ...c, reg_date: c.reg_date || new Date().toISOString(), created_by: req.user.id };
+  });
+  const { data, error } = await supabase.from('doctors').insert(prepared).select();
+  if (error) { console.error('[DOCTOR BULK]', error.message, error.details); return res.status(500).json({ error: error.message }); }
+  // Auto-create payment records for each
+  if (data && data.length) {
+    const payRecords = data.map(d => ({ doctor_id: d.id, reg_fee_paid: 'no', payments: [] }));
+    await supabase.from('doctor_payments').insert(payRecords);
+  }
+  await auditLog(req.user.id, req.user.username, `Bulk imported ${data.length} doctors`, 'create');
+  res.status(201).json({ imported: data.length, doctors: data });
+});
+
 // ── PAYMENTS ──────────────────────────────────────────
 router.get('/payments', async (req, res) => {
   const { data, error } = await supabase.from('doctor_payments').select('*');
