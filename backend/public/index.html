@@ -1931,15 +1931,24 @@ function renderDoctorFilters(){
 // ── Payment status calculation ──
 function doctorPaymentRecord(doctorId){ return drPayments.find(p=>p.doctor_id===doctorId)||{reg_fee_paid:'no',payments:[]}; }
 function sumPayments(rec){ const arr=Array.isArray(rec.payments)?rec.payments:[]; return arr.reduce((s,p)=>s+(parseFloat(p.amount)||0),0); }
+function regFeeAmount(rec){ return rec.reg_fee_paid==='yes'?(parseFloat(rec.reg_fee_amount)||0):0; }
+function totalPaid(rec){ return regFeeAmount(rec)+sumPayments(rec); }
+function remainingForDoctor(doctor){
+  const rec=doctorPaymentRecord(doctor.id);
+  const course=drCourses.find(c=>c.id===doctor.course_id);
+  const price=parseFloat(course?.price)||0;
+  return price-totalPaid(rec);
+}
 function doctorStatus(doctor){
   const rec=doctorPaymentRecord(doctor.id);
   const course=drCourses.find(c=>c.id===doctor.course_id);
   const price=parseFloat(course?.price)||0;
-  const paid=sumPayments(rec);
+  const coursePayments=sumPayments(rec);
+  const remaining=price-totalPaid(rec);
   if(rec.reg_fee_paid!=='yes') return 'grey';       // didn't pay registration
-  if(paid===0) return 'red';                         // reg paid, no course payments
-  if(price-paid!==0) return 'orange';                // reg paid, partial course
-  return 'green';                                    // fully paid
+  if(coursePayments===0) return 'red';               // reg paid, no course payments yet
+  if(remaining!==0) return 'orange';                 // reg paid + some, but not fully
+  return 'green';                                    // fully paid (remaining = 0)
 }
 const DR_STATUS_COLOR={green:{bg:'#E8F5EE',color:'#2E7D52',label:'שולם במלואו'},orange:{bg:'#FEF0E3',color:'#D4670A',label:'תשלום חלקי'},red:{bg:'#FDEDEC',color:'#C0392B',label:'מקדמה בלבד'},grey:{bg:'#f0f0f0',color:'#888',label:'לא שילם מקדמה'},blue:{bg:'#E8F2FA',color:'#1A5F8A',label:'כחול'}};
 function drStatusBadge(st){const c=DR_STATUS_COLOR[st]||DR_STATUS_COLOR.grey;return`<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color}" title="${c.label}"></span>`;}
@@ -1972,7 +1981,6 @@ function renderDoctors(){
           <strong style="font-size:15px">${course.name}</strong>
           <span style="font-size:12px;color:var(--text3)">${dates}</span>
           <span style="font-size:12px;background:var(--yellow-pale);padding:2px 10px;border-radius:10px">${docs.length} רופאים</span>
-          ${course.price?`<span style="font-size:12px;color:var(--text3)">מחיר: ₪${course.price}</span>`:''}
         </div>
         <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" onclick="openEditDrCourse('${course.id}')">✏️</button>
@@ -2208,15 +2216,17 @@ function renderDoctorPayments(){
       <thead><tr><th>סטטוס</th><th>שם</th><th>ת.ז</th><th>מקדמה</th><th>שולם סה"כ</th><th>נותר</th><th>פעולות</th></tr></thead>
       <tbody>${docs.map(d=>{
         const rec=doctorPaymentRecord(d.id);
-        const paid=sumPayments(rec);
+        const regFee=regFeeAmount(rec);
+        const coursePaid=sumPayments(rec);
+        const paidTotal=regFee+coursePaid;
         const price=parseFloat(course.price)||0;
-        const remaining=price-paid;
+        const remaining=price-paidTotal;
         return`<tr>
           <td>${drStatusBadge(doctorStatus(d))}</td>
           <td><strong>${d.fname||''} ${d.lname||''}</strong></td>
           <td style="font-size:12px">${d.id_number||'—'}</td>
           <td>${rec.reg_fee_paid==='yes'?`✓ ₪${rec.reg_fee_amount||0}`:'✗'}</td>
-          <td>₪${paid}</td>
+          <td>₪${paidTotal}</td>
           <td style="font-weight:700;color:${remaining>0?'var(--orange)':'var(--green)'}">₪${remaining}</td>
           <td><button class="btn btn-secondary btn-sm" onclick="openDoctorPayment('${d.id}')">💰 נהל תשלומים</button></td>
         </tr>`;
