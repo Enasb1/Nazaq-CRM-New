@@ -463,6 +463,24 @@ tr:hover td{background:var(--yellow-pale);}
 
 <!-- ADD/EDIT SEMESTER -->
 <!-- DOCTOR COURSE MODAL -->
+<!-- DOCTOR PAYMENT PASSWORD MODAL -->
+<div class="modal-overlay" id="modal-dr-password">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><div class="modal-title">🔒 גישה לתשלומים</div><button class="modal-close" onclick="cancelDrPassword()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group full">
+        <label class="form-label">הזן סיסמה</label>
+        <input type="password" class="form-input" id="dr-pw-input" dir="ltr" style="text-align:center;font-size:18px;letter-spacing:4px" onkeydown="if(event.key==='Enter')submitDrPassword()"/>
+        <div id="dr-pw-error" style="color:var(--red);font-size:12px;margin-top:6px;text-align:center"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cancelDrPassword()">ביטול</button>
+      <button class="btn btn-primary" onclick="submitDrPassword()">כניסה</button>
+    </div>
+  </div>
+</div>
+
 <!-- DOCTOR IMPORT MODAL -->
 <div class="modal-overlay" id="modal-import-doctors">
   <div class="modal modal-wide">
@@ -1888,15 +1906,27 @@ function showDrDash(n){
   document.getElementById('dr-dash-2').style.display=n===2?'block':'none';
   document.getElementById('btn-add-doctor').style.display=n===1?'inline-flex':'none';
   document.getElementById('btn-add-dr-course').style.display=n===1?'inline-flex':'none';
+  document.getElementById('btn-import-doctors').style.display=n===1?'inline-flex':'none';
   if(n===2){
     // Password gate — every time
-    if(!dr2Unlocked){
-      const pw=prompt('הזן סיסמה לגישה לתשלומים:');
-      if(pw!=='1234'){ showError('סיסמה שגויה'); showDrDash(1); return; }
-    }
-    renderDoctorPayments();
+    document.getElementById('dr-pw-input').value='';
+    document.getElementById('dr-pw-error').textContent='';
+    document.getElementById('modal-dr-password').classList.add('open');
+    setTimeout(()=>document.getElementById('dr-pw-input').focus(),100);
+    return;
   }
 }
+function submitDrPassword(){
+  const pw=document.getElementById('dr-pw-input').value;
+  if(pw==='1234'){
+    closeModal('modal-dr-password');
+    renderDoctorPayments();
+  } else {
+    document.getElementById('dr-pw-error').textContent='סיסמה שגויה';
+    document.getElementById('dr-pw-input').value='';
+  }
+}
+function cancelDrPassword(){ closeModal('modal-dr-password'); showDrDash(1); }
 
 // ── Courses: show only 3 (latest done, current, next) ──
 function visibleDrCourses(){
