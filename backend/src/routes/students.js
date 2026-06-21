@@ -65,6 +65,7 @@ router.post('/',
 
       const studentData = {
         ...cleaned,
+        lead_date: cleaned.lead_date || new Date().toISOString(),
         created_at: new Date().toISOString(),
         created_by: req.user.id
       };

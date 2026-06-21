@@ -522,17 +522,20 @@ const DEFAULT_STUDENT_FIELDS = [
   {key:'phone2',     label:'טלפון 2',           type:'phone',    locked:false,required:false, tableCol:false, section:'personal'},
   {key:'email',      label:'אימייל',            type:'email',    locked:false,required:false,  tableCol:true,  section:'personal'},
   {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
-  {key:'age',        label:'גיל',               type:'number',   locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'birthdate',  label:'תאריך לידה',        type:'date',     locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'age',        label:'גיל',               type:'computed', locked:true, required:false, tableCol:false, section:'personal'},
   {key:'city',       label:'עיר',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'address',    label:'כתובת',             type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
+  {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'status', options:['new','contacted','callback','notinterested','registered']},
+  {key:'semester_id',label:'סמסטר',             type:'semester', locked:false,required:false, tableCol:true,  section:'status'},
+  {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'status', options:['social_media','friend','school','radio','other']},
   {key:'school',     label:'בית ספר',           type:'text',     locked:false,required:false, tableCol:false, section:'school'},
-  {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'school', options:['new','contacted','callback','notinterested','registered']},
-  {key:'semester_id',label:'סמסטר',             type:'semester', locked:false,required:false, tableCol:true,  section:'school'},
-  {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'school', options:['social_media','friend','school','radio','other']},
+  {key:'bagrut',     label:'בגרות שלום',        type:'select',   locked:false,required:false, tableCol:false, section:'school', options:['yes','no','partial']},
   {key:'parent_name', label:'שם הורה',          type:'text',     locked:false,required:false, tableCol:false, section:'parent'},
   {key:'parent_phone',label:'טלפון הורה',       type:'phone',    locked:false,required:false, tableCol:false, section:'parent'},
   {key:'parent_email',label:'אימייל הורה',      type:'email',    locked:false,required:false, tableCol:false, section:'parent'},
   {key:'notes',      label:'הערות',             type:'textarea', locked:false,required:false, tableCol:false, section:'notes'},
+  {key:'lead_date',  label:'תאריך הוספת ליד',   type:'date',     locked:true, required:false, tableCol:false, section:'meta'},
   {key:'created',    label:'תאריך יצירה',       type:'date',     locked:true, required:false, tableCol:true,  section:'meta'},
 ];
 
@@ -804,74 +807,135 @@ function tableFields(fields){
 
 function renderStudentFilters(){
   const el=document.getElementById('student-filters');
-  // Build filter row: search + status + semester + year
-  const semOptions=semesters.sort((a,b)=>new Date(b.start)-new Date(a.start)).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const semOptions=[...semesters].sort((a,b)=>new Date(b.start_date||b.created_at||0)-new Date(a.start_date||a.created_at||0)).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const statusCheckboxes=Object.entries(STATUS_LABELS()).map(([v,l])=>
+    `<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;background:var(--bg);padding:5px 10px;border-radius:8px;white-space:nowrap">
+      <input type="checkbox" class="status-filter-cb" value="${v}" onchange="renderStudents()"/> ${l}
+    </label>`).join('');
   el.innerHTML=`
     <input type="text" class="search-input" id="student-search" oninput="renderStudents()" placeholder="חיפוש לפי שם, טלפון, ת.ז..."/>
-    <select class="filter-select" id="filter-status" onchange="renderStudents()">
-      <option value="">${t('all_status')}</option>
-      ${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
-    </select>
     <select class="filter-select" id="filter-semester" onchange="renderStudents()">
       <option value="">${t('all_semesters')}</option>
       ${semOptions}
-    </select>`;
+    </select>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;width:100%">
+      <span style="font-size:12px;color:var(--text3);font-weight:600">סטטוס:</span>
+      ${statusCheckboxes}
+    </div>`;
 }
 
+let studentSort={col:'lead_date',dir:'desc'};
+let collapsedSemesters={};
+function setStudentSort(col){
+  if(studentSort.col===col){ studentSort.dir=studentSort.dir==='asc'?'desc':'asc'; }
+  else { studentSort.col=col; studentSort.dir=(col==='lead_date'||col==='last_call')?'desc':'asc'; }
+  renderStudents();
+}
+function lastCallDate(studentId){
+  const cs=calls.filter(c=>c.student_id===studentId);
+  if(!cs.length) return null;
+  return cs.map(c=>c.datetime||c.created_at).sort().reverse()[0];
+}
+function toggleSemGroup(key){ collapsedSemesters[key]=!collapsedSemesters[key]; renderStudents(); }
+
 function renderStudents(){
-  // Render filters if not already
   if(!document.getElementById('student-search')) renderStudentFilters();
   const q=(document.getElementById('student-search').value||'').toLowerCase();
-  const fstatus=document.getElementById('filter-status').value;
   const fsem=document.getElementById('filter-semester').value;
-  const cols=tableFields(studentFields);
-  // Build header — skip lname since fname+lname are merged into one cell
+  // Multi-select status: read checked statuses
+  const statusChecks=[...document.querySelectorAll('.status-filter-cb:checked')].map(cb=>cb.value);
+
+  // Columns: name, phone, email, status, semester, and "תאריך יצירה" (now = last call date)
+  const cols=tableFields(studentFields).filter(f=>f.key!=='lname');
+  const sortable={fname:'שם',phone1:'טלפון',status:'סטטוס',created:'תאריך יצירה'};
   const thead=document.getElementById('students-thead');
-  thead.innerHTML='<th></th>'+cols.filter(f=>f.key!=='lname').map(f=>`<th>${f.key==='fname'?'שם':f.label}</th>`).join('')+'<th>פעולות</th>';
+  thead.innerHTML='<th></th>'+cols.map(f=>{
+    const sc=f.key==='created'?'last_call':f.key;
+    if(sortable[f.key]||f.key==='created'){
+      const arrow=studentSort.col===sc?(studentSort.dir==='asc'?' ▲':' ▼'):'';
+      return`<th style="cursor:pointer" onclick="setStudentSort('${sc}')">${f.key==='fname'?'שם':f.label}${arrow}</th>`;
+    }
+    return`<th>${f.key==='fname'?'שם':f.label}</th>`;
+  }).join('')+'<th>פעולות</th>';
+
+  // Filter
   let filtered=students.filter(s=>{
     if(q&&!(`${s.fname||''} ${s.lname||''} ${s.phone1||''} ${s.phone2||''} ${s.id_number||''} ${s.email||''}`).toLowerCase().includes(q))return false;
-    if(fstatus&&s.status!==fstatus)return false;
+    if(statusChecks.length&&!statusChecks.includes(s.status))return false;
     if(fsem&&s.semester_id!==fsem)return false;
     return true;
   });
+
+  // Sort
+  const dir=studentSort.dir==='asc'?1:-1;
+  filtered.sort((a,b)=>{
+    let av,bv;
+    if(studentSort.col==='last_call'){ av=lastCallDate(a.id)||''; bv=lastCallDate(b.id)||''; }
+    else if(studentSort.col==='fname'){ av=`${a.fname||''} ${a.lname||''}`; bv=`${b.fname||''} ${b.lname||''}`; }
+    else if(studentSort.col==='lead_date'){ av=a.lead_date||a.created_at||''; bv=b.lead_date||b.created_at||''; }
+    else { av=a[studentSort.col]||''; bv=b[studentSort.col]||''; }
+    return av>bv?dir:av<bv?-dir:0;
+  });
+
+  // Group by semester
+  const upcoming=upcomingSemesterOrder();
+  const groups={no_sem:{label:'ללא סמסטר',students:[]}};
+  upcoming.forEach(sm=>{ groups[sm.id]={label:sm.name,students:[],sem:sm}; });
+  filtered.forEach(s=>{
+    if(!s.semester_id||!groups[s.semester_id]){ if(!s.semester_id){groups.no_sem.students.push(s);} else { if(!groups[s.semester_id])groups[s.semester_id]={label:getSemester(s.semester_id)?.name||'סמסטר',students:[]}; groups[s.semester_id].students.push(s);} }
+    else groups[s.semester_id].students.push(s);
+  });
+
+  // Order: no_sem first, then upcoming semesters by start date
+  const orderedKeys=['no_sem',...upcoming.map(s=>s.id),...Object.keys(groups).filter(k=>k!=='no_sem'&&!upcoming.find(u=>u.id===k))];
+  // Default-open: no_sem + first 2 upcoming
+  const defaultOpen=new Set(['no_sem',...upcoming.slice(0,2).map(s=>s.id)]);
+
   const tbody=document.getElementById('students-tbody');
-  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${cols.length+2}"><div class="empty-state"><div class="icon">👥</div><div>${t('no_students')}</div></div></td></tr>`;return;}
-  tbody.innerHTML=filtered.map(s=>{
-    const cells=cols.map(f=>{
-      const val=s[f.key];
-      if(f.key==='fname'||f.key==='lname') return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong></td>`;
-      if(f.key==='status') return`<td>${statusBadge(s.status)}</td>`;
-      if(f.key==='semester_id') return`<td>${semBadgeHTML(s.semester_id)}</td>`;
-      if(f.key==='how_heard') return`<td>${HOW_HEARD_MAP()[val]||val||'—'}</td>`;
-      if(f.key==='direction') return`<td>${DIRECTION_MAP()[val]||val||'—'}</td>`;
-      if(f.key==='created') return`<td style="font-size:12px;color:var(--text3)">${formatDate(val)}</td>`;
-      if(f.key==='followup') return`<td>${val==='yes'?'✓':''}</td>`;
-      if(f.key==='followup_date'){const ov=val&&isOverdue(val);return`<td style="${ov?'color:var(--red);font-weight:700':''}">${ov?'⚠️ ':''}${formatDate(val)||'—'}</td>`;}
-      return`<td style="font-size:13px">${val||'—'}</td>`;
+  const colspan=cols.length+2;
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="${colspan}"><div class="empty-state"><div class="icon">👥</div><div>${t('no_students')}</div></div></td></tr>`;return;}
+
+  let html='';
+  orderedKeys.forEach(key=>{
+    const g=groups[key];
+    if(!g||!g.students.length)return;
+    const isCollapsed=(key in collapsedSemesters)?collapsedSemesters[key]:!defaultOpen.has(key);
+    html+=`<tr class="sem-group-header" onclick="toggleSemGroup('${key}')" style="cursor:pointer;background:var(--yellow-pale)">
+      <td colspan="${colspan}" style="font-weight:700;padding:10px 14px">${isCollapsed?'▶':'▼'} ${g.label} <span style="color:var(--text3);font-weight:400">(${g.students.length})</span></td></tr>`;
+    if(isCollapsed)return;
+    g.students.forEach(s=>{
+      const lc=lastCallDate(s.id);
+      const cells=cols.map(f=>{
+        const val=s[f.key];
+        if(f.key==='fname') return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong></td>`;
+        if(f.key==='status') return`<td>${statusBadge(s.status)}</td>`;
+        if(f.key==='semester_id') return`<td>${semBadgeHTML(s.semester_id)}</td>`;
+        if(f.key==='how_heard') return`<td>${HOW_HEARD_MAP()[val]||val||'—'}</td>`;
+        if(f.key==='created') return`<td style="font-size:12px;color:var(--text3)">${lc?formatDate(lc):'—'}</td>`;
+        return`<td style="font-size:13px">${val||'—'}</td>`;
+      }).join('');
+      html+=`<tr style="cursor:pointer" onclick="openDetail('${s.id}')">
+        <td><div class="avatar ${avatarClass(s)}">${avatarInitials(s)}</div></td>
+        ${cells}
+        <td onclick="event.stopPropagation()"><div class="actions">
+          <button class="act-btn" onclick="openDetail('${s.id}')">👁 <span style="font-size:11px">${t('view')}</span></button>
+          <button class="act-btn" onclick="openEditStudent('${s.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
+          <button class="act-btn" onclick="openStudentCalls('${s.id}')">📞 <span style="font-size:11px">${t('nav_calls')}</span></button>
+          <button class="act-btn danger" onclick="deleteStudent('${s.id}')">🗑</button>
+        </div></td>
+      </tr>`;
     });
-    // Remove duplicate name cols - only show combined name once
-    const dedupedCells=[];
-    const nameShown={};
-    cols.forEach((f,i)=>{
-      if((f.key==='lname')&&cols.find(x=>x.key==='fname')){if(nameShown.name)return;nameShown.name=true;}
-      if(f.key==='fname'){nameShown.name=true;dedupedCells.push(cells[i]);}
-      else if(f.key!=='lname') dedupedCells.push(cells[i]);
-    });
-    const cellsHTML=cols.map((f,i)=>{
-      if(f.key==='lname') return '';
-      return cells[i];
-    }).join('');
-    return`<tr style="cursor:pointer" onclick="openDetail('${s.id}')">
-      <td><div class="avatar ${avatarClass(s)}">${avatarInitials(s)}</div></td>
-      ${cellsHTML}
-      <td onclick="event.stopPropagation()"><div class="actions">
-        <button class="act-btn" onclick="openDetail('${s.id}')">👁 <span style="font-size:11px">${t('view')}</span></button>
-        <button class="act-btn" onclick="openEditStudent('${s.id}')">✏️ <span style="font-size:11px">${t('edit')}</span></button>
-        <button class="act-btn" onclick="openStudentCalls('${s.id}')">📞 <span style="font-size:11px">${t('nav_calls')}</span></button>
-        <button class="act-btn danger" onclick="deleteStudent('${s.id}')">🗑</button>
-      </div></td>
-    </tr>`;
-  }).join('');
+  });
+  tbody.innerHTML=html;
+}
+
+// Semesters ordered by start date (upcoming first), used for grouping
+function upcomingSemesterOrder(){
+  return [...semesters].sort((a,b)=>{
+    const ad=new Date(a.start_date||a.created_at||0);
+    const bd=new Date(b.start_date||b.created_at||0);
+    return ad-bd;
+  });
 }
 
 // ══════════════════════════════════════════
@@ -984,38 +1048,63 @@ function buildStudentForm(s){
   const semList=selectableSemesters();
   const semOpts=`<option value="">— סמסטר —</option>`+semList.map(sm=>`<option value="${sm.id}"${s.semester_id===sm.id?'selected':''}>${sm.name}</option>`).join('');
   let html='';
-  const sections={personal:'פרטים אישיים',school:'מידע לימודי',parent:'פרטי הורה',notes:'הערות',custom:'שדות נוספים'};
-  let lastSec='';
-  studentFields.filter(f=>f.key!=='created'&&f.key!=='fname'&&f.key!=='lname').forEach(f=>{
-    // Add fname+lname as combined first
-  });
-  // Build by section
   const grouped={};
-  studentFields.filter(f=>f.key!=='created').forEach(f=>{
+  studentFields.filter(f=>f.key!=='created'&&f.key!=='lead_date').forEach(f=>{
     const sec=f.section||'custom';
     if(!grouped[sec]) grouped[sec]=[];
     grouped[sec].push(f);
   });
-  // Personal section: fname+lname first side by side
+
+  // 1) PERSONAL section (always open) — fname+lname first
   html+=`<div class="form-section-title">פרטים אישיים</div>`;
-  const personalFields=grouped.personal||[];
-  // fname + lname always first
   const fnameF=studentFields.find(f=>f.key==='fname');
   const lnameF=studentFields.find(f=>f.key==='lname');
   if(fnameF) html+=`<div class="form-group"><label class="form-label">${fnameF.label} ${req}</label>${inputHTML(fnameF,s)}</div>`;
-  if(lnameF) html+=`<div class="form-group"><label class="form-label">${lnameF.label} ${req}</label>${inputHTML(lnameF,s)}</div>`;
-  personalFields.filter(f=>f.key!=='fname'&&f.key!=='lname').forEach(f=>{
-    html+=fieldFormGroup(f,s,semOpts,req);
-  });
-  // Other sections
+  if(lnameF) html+=`<div class="form-group"><label class="form-label">${lnameF.label}</label>${inputHTML(lnameF,s)}</div>`;
+  (grouped.personal||[]).filter(f=>f.key!=='fname'&&f.key!=='lname').forEach(f=>{ html+=fieldFormGroup(f,s,semOpts,req); });
+
+  // 2) STATUS section (always open) — status, semester, how_heard
+  html+=`<div class="form-section-title">סטטוס ורישום</div>`;
+  (grouped.status||[]).forEach(f=>{ html+=fieldFormGroup(f,s,semOpts,req); });
+
+  // 3) SCHOOL section (collapsible — optional)
+  if(grouped.school&&grouped.school.length){
+    html+=collapsibleSection('school','מידע לימודי',grouped.school,s,semOpts,req);
+  }
+  // 4) PARENT section (collapsible — optional)
+  if(grouped.parent&&grouped.parent.length){
+    html+=collapsibleSection('parent','פרטי הורה',grouped.parent,s,semOpts,req);
+  }
+  // 5) Notes + any custom
   Object.entries(grouped).forEach(([sec,fields])=>{
-    if(sec==='personal') return;
-    const secLabel=sections[sec]||sec;
-    html+=`<div class="form-section-title">${secLabel}</div>`;
+    if(['personal','status','school','parent'].includes(sec))return;
+    html+=`<div class="form-section-title">${({notes:'הערות',custom:'שדות נוספים'})[sec]||sec}</div>`;
     fields.forEach(f=>{ html+=fieldFormGroup(f,s,semOpts,req); });
   });
+
   html+=`<div class="form-group full" style="font-size:11px;color:var(--text3)">${req} שדות חובה</div>`;
   document.getElementById('student-form').innerHTML=html;
+  recalcAge(s);
+}
+
+function collapsibleSection(key,label,fields,s,semOpts,req){
+  // Open by default if any field has a value
+  const hasData=fields.some(f=>s[f.key]);
+  return`<div class="form-group full" style="margin:6px 0">
+    <button type="button" onclick="toggleFormSection('${key}')" id="sec-toggle-${key}" style="width:100%;text-align:right;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:13px;display:flex;justify-content:space-between;align-items:center">
+      <span>${label} <span style="color:var(--text3);font-weight:400;font-size:11px">(אופציונלי)</span></span><span id="sec-arrow-${key}">${hasData?'▲':'▼'}</span>
+    </button>
+    <div id="sec-body-${key}" style="display:${hasData?'block':'none'};padding-top:10px"><div class="form-grid">
+      ${fields.map(f=>fieldFormGroup(f,s,semOpts,req)).join('')}
+    </div></div>
+  </div>`;
+}
+function toggleFormSection(key){
+  const body=document.getElementById('sec-body-'+key);
+  const arrow=document.getElementById('sec-arrow-'+key);
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  arrow.textContent=open?'▲':'▼';
 }
 
 function fieldFormGroup(f,s,semOpts,req){
@@ -1029,6 +1118,17 @@ function inputHTML(f,s,semOpts){
   const raw=s[f.key];
   const val=(raw===undefined||raw===null)?'':raw;
   const id=`sf-${f.key}`;
+  if(f.key==='age'||f.type==='computed'){
+    // Read-only, auto-calculated from birthdate
+    return`<input class="form-input" type="text" id="${id}" value="${val}" readonly style="background:var(--bg);color:var(--text2)" placeholder="מחושב מתאריך לידה"/>`;
+  }
+  if(f.key==='birthdate'){
+    return`<input class="form-input" type="date" id="${id}" value="${val}" onchange="recalcAgeLive()"/>`;
+  }
+  if(f.key==='bagrut'){
+    const map={yes:'כן',no:'לא',partial:'חלקי'};
+    return`<select class="form-select" id="${id}"><option value="">—</option>${['yes','no','partial'].map(o=>`<option value="${o}"${val===o?'selected':''}>${map[o]}</option>`).join('')}</select>`;
+  }
   if(f.key==='status'){
     return`<select class="form-select" id="${id}">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select>`;
   }
@@ -1037,7 +1137,7 @@ function inputHTML(f,s,semOpts){
   }
   if(f.key==='how_heard'){
     const opts=['social_media','friend','school','radio','other'];
-    return`<select class="form-select" id="${id}">${opts.map(o=>`<option value="${o}"${val===o?'selected':''}>${HOW_HEARD_MAP()[o]}</option>`).join('')}</select>`;
+    return`<select class="form-select" id="${id}"><option value="">—</option>${opts.map(o=>`<option value="${o}"${val===o?'selected':''}>${HOW_HEARD_MAP()[o]}</option>`).join('')}</select>`;
   }
   if(f.key==='direction'){
     return`<select class="form-select" id="${id}"><option value="initiated"${val==='initiated'?'selected':''}>יוצאת</option><option value="received"${val==='received'?'selected':''}>נכנסת</option></select>`;
@@ -1051,10 +1151,22 @@ function inputHTML(f,s,semOpts){
   if(f.type==='textarea'){
     return`<textarea class="form-textarea" id="${id}">${val}</textarea>`;
   }
-  const typeMap={text:'text',number:'number',email:'email',phone:'tel',date:'date',datetime:'datetime-local',phone:'tel'};
+  const typeMap={text:'text',number:'number',email:'email',phone:'tel',date:'date',datetime:'datetime-local'};
   const inputType=typeMap[f.type]||'text';
   return`<input class="form-input" type="${inputType}" id="${id}" value="${val}"/>`;
 }
+
+function calcAgeFromBirthdate(bd){
+  if(!bd)return'';
+  const b=new Date(bd); if(isNaN(b))return'';
+  const now=new Date();
+  let age=now.getFullYear()-b.getFullYear();
+  const m=now.getMonth()-b.getMonth();
+  if(m<0||(m===0&&now.getDate()<b.getDate())) age--;
+  return age>=0&&age<150?age:'';
+}
+function recalcAge(s){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value||s.birthdate); }
+function recalcAgeLive(){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value); }
 
 async function saveStudent(){
   const REQUIRED_KEYS=studentFields.filter(f=>f.required).map(f=>f.key);
@@ -1065,6 +1177,8 @@ async function saveStudent(){
     if(!el) return;
     data[f.key]=el.value.trim?el.value.trim():el.value;
   });
+  // Always recompute age from birthdate
+  if(data.birthdate) data.age=String(calcAgeFromBirthdate(data.birthdate)||'');
   REQUIRED_KEYS.forEach(k=>{
     if(!data[k]){
       missing.push(k);
@@ -1422,7 +1536,7 @@ async function deleteCall(id){
 function renderSemesters(){
   const isAdmin=currentUser?.role==='admin'||!currentUser;
   document.getElementById('btn-add-sem').style.display=isAdmin?'inline-flex':'none';
-  const sorted=[...semesters].sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const sorted=[...semesters].sort((a,b)=>new Date(b.start_date||b.created_at||0)-new Date(a.start_date||a.created_at||0));
   const el=document.getElementById('semesters-list');
   if(!sorted.length){el.innerHTML=`<div class="empty-state"><div class="icon">📅</div><div>אין סמסטרים</div></div>`;return;}
   el.innerHTML=sorted.map(sem=>{
@@ -1433,7 +1547,7 @@ function renderSemesters(){
     const newCount=semStudents.filter(s=>s.status==='new').length;
     const c=SEM_TYPE_COLOR[sem.type]||{bg:'#eee',color:'#666'};
     const today=new Date();
-    const start=new Date(sem.start); const end=new Date(sem.end); const deadline=new Date(sem.reg_deadline);
+    const start=new Date(sem.start_date); const end=new Date(sem.end_date); const deadline=new Date(sem.reg_deadline);
     let phase='future'; let phaseLabel=''; let phaseBg=''; let phaseColor='';
     if(today>end){phase='past';phaseLabel='הסתיים';phaseBg='#f4f4f4';phaseColor='#888';}
     else if(today>=start){phase='active';phaseLabel='פעיל';phaseBg='var(--green-bg)';phaseColor='var(--green)';}
@@ -1457,8 +1571,8 @@ function renderSemesters(){
         <div class="sem-stat"><div class="sem-stat-val" style="color:var(--blue)">${contacted+newCount}</div><div class="sem-stat-lbl">ביצירת קשר</div></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12px">
-        <div style="color:var(--text3)">📅 פתיחה: <strong style="color:var(--text)">${formatDate(sem.start)}</strong></div>
-        <div style="color:var(--text3)">📅 סיום: <strong style="color:var(--text)">${formatDate(sem.end)}</strong></div>
+        <div style="color:var(--text3)">📅 פתיחה: <strong style="color:var(--text)">${formatDate(sem.start_date)}</strong></div>
+        <div style="color:var(--text3)">📅 סיום: <strong style="color:var(--text)">${formatDate(sem.end_date)}</strong></div>
         <div style="color:var(--text3)">⏰ רישום עד: <strong style="color:${today>deadline&&phase!=='past'?'var(--red)':'var(--text)'}">${formatDate(sem.reg_deadline)}</strong></div>
       </div>
       ${sem.notes?`<div style="margin-top:10px;font-size:12px;color:var(--text2);background:var(--surface2);padding:8px 12px;border-radius:8px">${sem.notes}</div>`:''}
@@ -1499,8 +1613,8 @@ function openEditSemester(id){
   document.getElementById('sem-name').value=sem.name||'';
   document.getElementById('sem-type').value=sem.type||'autumn';
   document.getElementById('sem-year').value=sem.year||new Date().getFullYear();
-  document.getElementById('sem-start').value=sem.start||'';
-  document.getElementById('sem-end').value=sem.end||'';
+  document.getElementById('sem-start').value=sem.start_date||'';
+  document.getElementById('sem-end').value=sem.end_date||'';
   document.getElementById('sem-reg-deadline').value=sem.reg_deadline||'';
   document.getElementById('sem-notes').value=sem.notes||'';
   document.getElementById('modal-semester').classList.add('open');
