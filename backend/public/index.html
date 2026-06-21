@@ -289,6 +289,7 @@ tr:hover td{background:var(--yellow-pale);}
     <button class="nav-tab" onclick="showPage('students')" id="tab-students">👥 <span data-t="nav_students">תלמידים</span></button>
     <button class="nav-tab" onclick="showPage('calls')" id="tab-calls">📞 <span data-t="nav_calls">שיחות</span> <span class="nbadge" id="pending-badge" style="display:none">0</span></button>
     <button class="nav-tab" onclick="showPage('semesters')" id="tab-semesters">📅 <span data-t="nav_semesters">סמסטרים</span></button>
+    <button class="nav-tab" onclick="showPage('doctors')" id="tab-doctors">🩺 <span>קורס הכשרת רופאים</span></button>
     <button class="nav-tab" id="tab-config" style="display:none" onclick="showPage('config')">🔧 <span data-t="nav_config">הגדרות שדות</span></button>
   </div>
   <div class="content">
@@ -351,6 +352,31 @@ tr:hover td{background:var(--yellow-pale);}
         <button class="btn btn-primary" id="btn-add-sem" onclick="openAddSemester()">＋ <span data-t="add_semester">הוסף סמסטר</span></button>
       </div>
       <div id="semesters-list"></div>
+    </div>
+
+    <!-- DOCTOR TRAINING COURSE -->
+    <div id="page-doctors" class="page">
+      <div class="section-header">
+        <div class="section-title">🩺 קורס הכשרת רופאים</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" id="btn-add-dr-course" onclick="openAddDrCourse()">＋ קורס חדש</button>
+          <button class="btn btn-primary" id="btn-add-doctor" onclick="openAddDoctor()">＋ הוסף רופא</button>
+        </div>
+      </div>
+      <!-- Sub-tabs for the two dashboards -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid var(--border)">
+        <button class="dr-subtab active" id="drtab-1" onclick="showDrDash(1)" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-family:var(--font);font-weight:700;font-size:14px;border-bottom:3px solid var(--yellow);margin-bottom:-2px">👨‍⚕️ רופאים</button>
+        <button class="dr-subtab" id="drtab-2" onclick="showDrDash(2)" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-family:var(--font);font-weight:700;font-size:14px;color:var(--text2);border-bottom:3px solid transparent;margin-bottom:-2px">💰 תשלומים</button>
+      </div>
+      <!-- Dashboard 1: doctors by course -->
+      <div id="dr-dash-1">
+        <div id="dr-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div id="doctors-list"></div>
+      </div>
+      <!-- Dashboard 2: payments (password gated) -->
+      <div id="dr-dash-2" style="display:none">
+        <div id="dr-payments-content"></div>
+      </div>
     </div>
 
     <!-- CONFIG (admin only) -->
@@ -435,6 +461,42 @@ tr:hover td{background:var(--yellow-pale);}
 </div>
 
 <!-- ADD/EDIT SEMESTER -->
+<!-- DOCTOR COURSE MODAL -->
+<div class="modal-overlay" id="modal-dr-course">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><div class="modal-title">קורס הכשרת רופאים</div><button class="modal-close" onclick="closeModal('modal-dr-course')">×</button></div>
+    <div class="modal-body"><div class="form-grid" id="dr-course-form"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-dr-course')">ביטול</button>
+      <button class="btn btn-primary" onclick="saveDrCourse()">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOCTOR MODAL -->
+<div class="modal-overlay" id="modal-doctor">
+  <div class="modal modal-wide" id="modal-doctor-inner">
+    <div class="modal-header"><div class="modal-title" id="doctor-modal-title">הוסף רופא</div><button class="modal-close" onclick="closeModal('modal-doctor')">×</button></div>
+    <div class="modal-body"><div class="form-grid" id="doctor-form"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-doctor')">ביטול</button>
+      <button class="btn btn-primary" onclick="saveDoctor()">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOCTOR PAYMENT MODAL -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal modal-wide">
+    <div class="modal-header"><div class="modal-title" id="payment-modal-title">תשלומים</div><button class="modal-close" onclick="closeModal('modal-payment')">×</button></div>
+    <div class="modal-body"><div class="form-grid" id="payment-form"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-payment')">ביטול</button>
+      <button class="btn btn-primary" onclick="saveDoctorPayment()">שמור</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-semester">
   <div class="modal" style="max-width:480px">
     <div class="modal-header"><div class="modal-title" id="sem-modal-title">הוסף סמסטר</div><button class="modal-close" onclick="closeModal('modal-semester')">×</button></div>
@@ -741,6 +803,7 @@ function showPage(p){
   if(p==='calls') renderCalls();
   if(p==='dashboard') renderDashboard();
   if(p==='semesters') renderSemesters();
+  if(p==='doctors') loadDoctorData();
   if(p==='config') renderConfig();
 }
 
@@ -1778,6 +1841,312 @@ function exportExcel(){
 // MODAL UTILS
 // ══════════════════════════════════════════
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ══════════════════════════════════════════
+// DOCTOR TRAINING COURSE
+// ══════════════════════════════════════════
+let drCourses=[], doctors=[], drPayments=[], dr2Unlocked=false;
+const PAY_METHODS=['מזומן','העברה בנקאית','שק','אשראי','אחר'];
+
+async function loadDoctorData(){
+  try{
+    [drCourses,doctors,drPayments]=await Promise.all([
+      api('GET','/api/doctors/courses'),
+      api('GET','/api/doctors'),
+      api('GET','/api/doctors/payments')
+    ]);
+  }catch(e){ drCourses=drCourses||[]; doctors=doctors||[]; drPayments=drPayments||[]; }
+  renderDoctorFilters();
+  renderDoctors();
+}
+
+function showDrDash(n){
+  document.getElementById('drtab-1').style.borderBottomColor=n===1?'var(--yellow)':'transparent';
+  document.getElementById('drtab-1').style.color=n===1?'var(--text)':'var(--text2)';
+  document.getElementById('drtab-2').style.borderBottomColor=n===2?'var(--yellow)':'transparent';
+  document.getElementById('drtab-2').style.color=n===2?'var(--text)':'var(--text2)';
+  document.getElementById('dr-dash-1').style.display=n===1?'block':'none';
+  document.getElementById('dr-dash-2').style.display=n===2?'block':'none';
+  document.getElementById('btn-add-doctor').style.display=n===1?'inline-flex':'none';
+  document.getElementById('btn-add-dr-course').style.display=n===1?'inline-flex':'none';
+  if(n===2){
+    // Password gate — every time
+    if(!dr2Unlocked){
+      const pw=prompt('הזן סיסמה לגישה לתשלומים:');
+      if(pw!=='1234'){ showError('סיסמה שגויה'); showDrDash(1); return; }
+    }
+    renderDoctorPayments();
+  }
+}
+
+// ── Courses: show only 3 (latest done, current, next) ──
+function visibleDrCourses(){
+  const today=new Date();
+  const sorted=[...drCourses].sort((a,b)=>new Date(a.start_date||0)-new Date(b.start_date||0));
+  const past=sorted.filter(c=>c.exam_date&&new Date(c.exam_date)<today);
+  const currentOrFuture=sorted.filter(c=>!c.exam_date||new Date(c.exam_date)>=today);
+  const latestDone=past.slice(-1);
+  const current=currentOrFuture.slice(0,1);
+  const next=currentOrFuture.slice(1,2);
+  const result=[...latestDone,...current,...next];
+  // Fallback: if fewer than 3 determined, just show up to 3 most recent
+  if(!result.length) return sorted.slice(-3);
+  return result;
+}
+
+function renderDoctorFilters(){
+  const countries=[...new Set(doctors.map(d=>d.diploma_country).filter(Boolean))];
+  const statusOpts=[['green','ירוק'],['orange','כתום'],['red','אדום'],['grey','אפור'],['blue','כחול']];
+  document.getElementById('dr-filters').innerHTML=`
+    <input type="text" class="search-input" id="dr-search" oninput="renderDoctors()" placeholder="חיפוש: שם, ת.ז, טלפון, אימייל..."/>
+    <select class="filter-select" id="dr-filter-country" onchange="renderDoctors()">
+      <option value="">כל ארצות הדיפלומה</option>
+      ${countries.map(c=>`<option value="${c}">${c}</option>`).join('')}
+    </select>
+    <select class="filter-select" id="dr-filter-status" onchange="renderDoctors()">
+      <option value="">כל הסטטוסים</option>
+      ${statusOpts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
+    </select>`;
+}
+
+// ── Payment status calculation ──
+function doctorPaymentRecord(doctorId){ return drPayments.find(p=>p.doctor_id===doctorId)||{reg_fee_paid:'no',payments:[]}; }
+function sumPayments(rec){ const arr=Array.isArray(rec.payments)?rec.payments:[]; return arr.reduce((s,p)=>s+(parseFloat(p.amount)||0),0); }
+function doctorStatus(doctor){
+  const rec=doctorPaymentRecord(doctor.id);
+  const course=drCourses.find(c=>c.id===doctor.course_id);
+  const price=parseFloat(course?.price)||0;
+  const paid=sumPayments(rec);
+  if(rec.reg_fee_paid!=='yes') return 'grey';       // didn't pay registration
+  if(paid===0) return 'red';                         // reg paid, no course payments
+  if(price-paid!==0) return 'orange';                // reg paid, partial course
+  return 'green';                                    // fully paid
+}
+const DR_STATUS_COLOR={green:{bg:'#E8F5EE',color:'#2E7D52',label:'שולם במלואו'},orange:{bg:'#FEF0E3',color:'#D4670A',label:'תשלום חלקי'},red:{bg:'#FDEDEC',color:'#C0392B',label:'מקדמה בלבד'},grey:{bg:'#f0f0f0',color:'#888',label:'לא שילם מקדמה'},blue:{bg:'#E8F2FA',color:'#1A5F8A',label:'כחול'}};
+function drStatusBadge(st){const c=DR_STATUS_COLOR[st]||DR_STATUS_COLOR.grey;return`<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color}" title="${c.label}"></span>`;}
+
+// ── Dashboard 1: doctors grouped by course ──
+let drCollapsed={};
+function toggleDrCourse(id){ drCollapsed[id]=!drCollapsed[id]; renderDoctors(); }
+function renderDoctors(){
+  const q=(document.getElementById('dr-search')?.value||'').toLowerCase();
+  const fc=document.getElementById('dr-filter-country')?.value||'';
+  const fs=document.getElementById('dr-filter-status')?.value||'';
+  const courses=visibleDrCourses();
+  const el=document.getElementById('doctors-list');
+  if(!drCourses.length){ el.innerHTML=`<div class="empty-state"><div class="icon">🩺</div><div>אין קורסים עדיין. צור קורס חדש כדי להתחיל.</div></div>`; return; }
+  let html='';
+  courses.forEach((course,idx)=>{
+    let docs=doctors.filter(d=>d.course_id===course.id);
+    docs=docs.filter(d=>{
+      if(q&&!(`${d.fname||''} ${d.lname||''} ${d.id_number||''} ${d.phone1||''} ${d.phone2||''} ${d.email||''}`).toLowerCase().includes(q))return false;
+      if(fc&&d.diploma_country!==fc)return false;
+      if(fs&&doctorStatus(d)!==fs)return false;
+      return true;
+    });
+    const collapsed=drCollapsed[course.id];
+    const dates=[course.start_date&&`התחלה: ${formatDate(course.start_date)}`,course.exam_date&&`מבחן: ${formatDate(course.exam_date)}`].filter(Boolean).join(' · ');
+    html+=`<div class="sem-card" style="margin-bottom:14px">
+      <div class="sem-card-header" style="cursor:pointer" onclick="toggleDrCourse('${course.id}')">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:15px">${collapsed?'▶':'▼'}</span>
+          <strong style="font-size:15px">${course.name}</strong>
+          <span style="font-size:12px;color:var(--text3)">${dates}</span>
+          <span style="font-size:12px;background:var(--yellow-pale);padding:2px 10px;border-radius:10px">${docs.length} רופאים</span>
+          ${course.price?`<span style="font-size:12px;color:var(--text3)">מחיר: ₪${course.price}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" onclick="openEditDrCourse('${course.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDrCourse('${course.id}')">🗑</button>
+        </div>
+      </div>
+      ${collapsed?'':`<div style="overflow-x:auto;margin-top:10px"><table class="data-table" style="width:100%">
+        <thead><tr><th>סטטוס</th><th>שם</th><th>ת.ז</th><th>טלפון</th><th>אימייל</th><th>ארץ דיפלומה</th><th>שנת סיום</th><th>פעולות</th></tr></thead>
+        <tbody>${docs.length?docs.map(d=>`<tr style="cursor:pointer" onclick="openEditDoctor('${d.id}')">
+          <td>${drStatusBadge(doctorStatus(d))}</td>
+          <td><strong>${d.fname||''} ${d.lname||''}</strong></td>
+          <td style="font-size:12px">${d.id_number||'—'}</td>
+          <td dir="ltr" style="text-align:right;font-size:12px">${d.phone1||'—'}</td>
+          <td style="font-size:12px">${d.email||'—'}</td>
+          <td style="font-size:12px">${d.diploma_country||'—'}</td>
+          <td style="font-size:12px">${d.grad_year||'—'}</td>
+          <td onclick="event.stopPropagation()"><div class="actions">
+            <button class="act-btn" onclick="openEditDoctor('${d.id}')">✏️</button>
+            <button class="act-btn danger" onclick="deleteDoctor('${d.id}')">🗑</button>
+          </div></td>
+        </tr>`).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">אין רופאים בקורס זה</td></tr>`}</tbody>
+      </table></div>`}
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ── Course form ──
+let editingDrCourseId=null;
+function openAddDrCourse(){ editingDrCourseId=null; drCourseFormHTML({}); document.getElementById('modal-dr-course').classList.add('open'); }
+function openEditDrCourse(id){ const c=drCourses.find(x=>x.id===id); if(!c)return; editingDrCourseId=id; drCourseFormHTML(c); document.getElementById('modal-dr-course').classList.add('open'); }
+function drCourseFormHTML(c){
+  document.getElementById('dr-course-form').innerHTML=`
+    <div class="form-group full"><label class="form-label">שם הקורס <span style="color:var(--red)">*</span></label><input class="form-input" id="drc-name" value="${(c.name||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">תאריך התחלה</label><input type="date" class="form-input" id="drc-start" value="${c.start_date||''}"/></div>
+    <div class="form-group"><label class="form-label">תאריך אמצע</label><input type="date" class="form-input" id="drc-mid" value="${c.mid_date||''}"/></div>
+    <div class="form-group"><label class="form-label">תאריך מבחן</label><input type="date" class="form-input" id="drc-exam" value="${c.exam_date||''}"/></div>
+    <div class="form-group"><label class="form-label">מחיר הקורס (₪)</label><input type="number" class="form-input" id="drc-price" value="${c.price||''}"/></div>
+    <div class="form-group full"><label class="form-label">הערות</label><textarea class="form-textarea" id="drc-notes">${c.notes||''}</textarea></div>`;
+}
+async function saveDrCourse(){
+  const name=document.getElementById('drc-name').value.trim();
+  if(!name){ showError('נדרש שם קורס'); return; }
+  const data={name,start_date:document.getElementById('drc-start').value,mid_date:document.getElementById('drc-mid').value,exam_date:document.getElementById('drc-exam').value,price:document.getElementById('drc-price').value||0,notes:document.getElementById('drc-notes').value.trim()};
+  try{
+    if(editingDrCourseId){ const s=await api('PUT','/api/doctors/courses/'+editingDrCourseId,data); const i=drCourses.findIndex(x=>x.id===editingDrCourseId); if(i!==-1)drCourses[i]=s; }
+    else { const s=await api('POST','/api/doctors/courses',data); drCourses.push(s); }
+    closeModal('modal-dr-course'); renderDoctorFilters(); renderDoctors();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+async function deleteDrCourse(id){ if(!confirm('למחוק קורס זה?'))return; try{ await api('DELETE','/api/doctors/courses/'+id); drCourses=drCourses.filter(c=>c.id!==id); renderDoctors(); }catch(e){ showError(e.message); } }
+
+// ── Doctor form ──
+let editingDoctorId=null;
+function openAddDoctor(){
+  if(!drCourses.length){ showError('צור קודם קורס'); return; }
+  editingDoctorId=null; doctorFormHTML({}); document.getElementById('modal-doctor').classList.add('open');
+  document.getElementById('doctor-modal-title').textContent='הוסף רופא';
+}
+function openEditDoctor(id){ const d=doctors.find(x=>x.id===id); if(!d)return; editingDoctorId=id; doctorFormHTML(d); document.getElementById('modal-doctor').classList.add('open'); document.getElementById('doctor-modal-title').textContent=`עריכה · ${d.fname||''} ${d.lname||''}`; }
+function doctorFormHTML(d){
+  const req=`<span style="color:var(--red)">*</span>`;
+  const courseOpts=`<option value="">— בחר קורס —</option>`+drCourses.map(c=>`<option value="${c.id}"${d.course_id===c.id?'selected':''}>${c.name}</option>`).join('');
+  document.getElementById('doctor-form').innerHTML=`
+    <div class="form-group full"><label class="form-label">קורס ${req}</label><select class="form-select" id="dr-course">${courseOpts}</select></div>
+    <div class="form-section-title">פרטים אישיים</div>
+    <div class="form-group"><label class="form-label">שם פרטי ${req}</label><input class="form-input" id="dr-fname" value="${(d.fname||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">שם משפחה ${req}</label><input class="form-input" id="dr-lname" value="${(d.lname||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">מספר ת.ז ${req}</label><input class="form-input" id="dr-id_number" value="${(d.id_number||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">טלפון 1 (וואטסאפ) ${req}</label><input class="form-input" id="dr-phone1" dir="ltr" value="${(d.phone1||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">טלפון 2</label><input class="form-input" id="dr-phone2" dir="ltr" value="${(d.phone2||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">אימייל ${req}</label><input class="form-input" id="dr-email" dir="ltr" value="${(d.email||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">עיר</label><input class="form-input" id="dr-city" value="${(d.city||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">תאריך הרשמה</label><input type="date" class="form-input" id="dr-reg_date" value="${d.reg_date?String(d.reg_date).substring(0,10):''}"/></div>
+    <div class="form-section-title">השכלה</div>
+    <div class="form-group"><label class="form-label">ארץ דיפלומה ${req}</label><input class="form-input" id="dr-diploma_country" value="${(d.diploma_country||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="form-group"><label class="form-label">שנת סיום ${req}</label><input class="form-input" id="dr-grad_year" value="${(d.grad_year||'').replace(/"/g,'&quot;')}"/></div>
+    <div class="opt-section parent"><button type="button" class="opt-section-head" onclick="toggleFormSection('drparent')" id="sec-toggle-drparent"><span>👪 פרטי הורה <span style="font-weight:500;opacity:.7;font-size:11px">· אופציונלי</span></span><span id="sec-arrow-drparent">${d.parent_name||d.parent_phone?'▲':'▼'}</span></button>
+      <div class="opt-section-body" id="sec-body-drparent" style="display:${d.parent_name||d.parent_phone?'block':'none'}"><div class="form-grid">
+        <div class="form-group"><label class="form-label">שם הורה</label><input class="form-input" id="dr-parent_name" value="${(d.parent_name||'').replace(/"/g,'&quot;')}"/></div>
+        <div class="form-group"><label class="form-label">טלפון הורה</label><input class="form-input" id="dr-parent_phone" dir="ltr" value="${(d.parent_phone||'').replace(/"/g,'&quot;')}"/></div>
+      </div></div>
+    </div>
+    <div class="form-group full"><label class="form-label">הערות</label><textarea class="form-textarea" id="dr-comments">${d.comments||''}</textarea></div>`;
+}
+async function saveDoctor(){
+  const get=id=>document.getElementById(id)?.value.trim()||'';
+  const data={course_id:get('dr-course'),fname:get('dr-fname'),lname:get('dr-lname'),id_number:get('dr-id_number'),phone1:get('dr-phone1'),phone2:get('dr-phone2'),email:get('dr-email'),city:get('dr-city'),reg_date:get('dr-reg_date'),diploma_country:get('dr-diploma_country'),grad_year:get('dr-grad_year'),parent_name:get('dr-parent_name'),parent_phone:get('dr-parent_phone'),comments:get('dr-comments')};
+  const missing=[];
+  if(!data.course_id)missing.push('קורס');
+  ['fname','lname','id_number','phone1','email','diploma_country','grad_year'].forEach(k=>{ if(!data[k])missing.push(k); });
+  if(missing.length){ showError('שדות חובה חסרים'); return; }
+  try{
+    if(editingDoctorId){ const s=await api('PUT','/api/doctors/'+editingDoctorId,data); const i=doctors.findIndex(x=>x.id===editingDoctorId); if(i!==-1)doctors[i]=s; }
+    else { const s=await api('POST','/api/doctors',data); doctors.unshift(s); await loadDoctorData(); }
+    closeModal('modal-doctor'); renderDoctorFilters(); renderDoctors();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+async function deleteDoctor(id){ if(!confirm('למחוק רופא זה?'))return; try{ await api('DELETE','/api/doctors/'+id); doctors=doctors.filter(d=>d.id!==id); renderDoctors(); }catch(e){ showError(e.message); } }
+
+// ── Dashboard 2: payments ──
+function renderDoctorPayments(){
+  const el=document.getElementById('dr-payments-content');
+  if(!doctors.length){ el.innerHTML=`<div class="empty-state"><div class="icon">💰</div><div>אין רופאים לניהול תשלומים</div></div>`; return; }
+  const courses=visibleDrCourses();
+  let html='';
+  courses.forEach(course=>{
+    const docs=doctors.filter(d=>d.course_id===course.id);
+    if(!docs.length)return;
+    html+=`<div style="margin-bottom:8px;font-weight:800;font-size:14px;background:var(--surface2);padding:10px 14px;border-radius:10px;border-right:4px solid var(--yellow)">${course.name} <span style="font-weight:400;color:var(--text3);font-size:12px">· מחיר קורס: ₪${course.price||0}</span></div>`;
+    html+=`<div style="overflow-x:auto;margin-bottom:20px"><table class="data-table" style="width:100%">
+      <thead><tr><th>סטטוס</th><th>שם</th><th>ת.ז</th><th>מקדמה</th><th>שולם סה"כ</th><th>נותר</th><th>פעולות</th></tr></thead>
+      <tbody>${docs.map(d=>{
+        const rec=doctorPaymentRecord(d.id);
+        const paid=sumPayments(rec);
+        const price=parseFloat(course.price)||0;
+        const remaining=price-paid;
+        return`<tr>
+          <td>${drStatusBadge(doctorStatus(d))}</td>
+          <td><strong>${d.fname||''} ${d.lname||''}</strong></td>
+          <td style="font-size:12px">${d.id_number||'—'}</td>
+          <td>${rec.reg_fee_paid==='yes'?`✓ ₪${rec.reg_fee_amount||0}`:'✗'}</td>
+          <td>₪${paid}</td>
+          <td style="font-weight:700;color:${remaining>0?'var(--orange)':'var(--green)'}">₪${remaining}</td>
+          <td><button class="btn btn-secondary btn-sm" onclick="openDoctorPayment('${d.id}')">💰 נהל תשלומים</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ── Payment management modal ──
+let editingPaymentDoctorId=null;
+function openDoctorPayment(doctorId){
+  editingPaymentDoctorId=doctorId;
+  const d=doctors.find(x=>x.id===doctorId);
+  const rec=JSON.parse(JSON.stringify(doctorPaymentRecord(doctorId)));
+  if(!Array.isArray(rec.payments))rec.payments=[];
+  window._editingPayRec=rec;
+  document.getElementById('payment-modal-title').textContent=`תשלומים · ${d.fname||''} ${d.lname||''}`;
+  renderPaymentForm();
+  document.getElementById('modal-payment').classList.add('open');
+}
+function methodOpts(sel){ return `<option value="">—</option>`+PAY_METHODS.map(m=>`<option value="${m}"${sel===m?'selected':''}>${m}</option>`).join(''); }
+function renderPaymentForm(){
+  const rec=window._editingPayRec;
+  let html=`<div class="form-section-title">מקדמה (דמי הרשמה)</div>
+    <div class="form-group"><label class="form-label">שילם מקדמה? <span style="color:var(--red)">*</span></label><select class="form-select" id="pay-regpaid" onchange="onRegPaidChange()"><option value="no"${rec.reg_fee_paid!=='yes'?'selected':''}>לא</option><option value="yes"${rec.reg_fee_paid==='yes'?'selected':''}>כן</option></select></div>
+    <div class="form-group" id="pay-reg-amount-grp" style="display:${rec.reg_fee_paid==='yes'?'':'none'}"><label class="form-label">סכום מקדמה ₪</label><input type="number" class="form-input" id="pay-regamount" value="${rec.reg_fee_amount||''}"/></div>
+    <div class="form-group" id="pay-reg-date-grp" style="display:${rec.reg_fee_paid==='yes'?'':'none'}"><label class="form-label">תאריך תשלום</label><input type="date" class="form-input" id="pay-regdate" value="${rec.reg_fee_date||''}"/></div>
+    <div class="form-group" id="pay-reg-method-grp" style="display:${rec.reg_fee_paid==='yes'?'':'none'}"><label class="form-label">אופן תשלום</label><select class="form-select" id="pay-regmethod">${methodOpts(rec.reg_fee_method)}</select></div>
+    <div class="form-section-title">תשלומים (עד 10)</div>
+    <div class="form-group full" id="payments-array"></div>
+    <div class="form-group full"><button class="btn btn-secondary" onclick="addPaymentRow()" id="btn-add-payment">＋ הוסף תשלום</button></div>
+    <div class="form-group full"><label class="form-label">הערות</label><textarea class="form-textarea" id="pay-comments">${rec.comments||''}</textarea></div>`;
+  document.getElementById('payment-form').innerHTML=html;
+  renderPaymentRows();
+}
+function renderPaymentRows(){
+  const rec=window._editingPayRec;
+  const cont=document.getElementById('payments-array');
+  cont.innerHTML=rec.payments.map((p,i)=>`<div style="display:grid;grid-template-columns:1.2fr 1fr 1.3fr 1.5fr auto;gap:8px;align-items:end;margin-bottom:8px;padding:10px;background:var(--bg);border-radius:10px">
+    <div><label class="form-label">תאריך</label><input type="date" class="form-input" value="${p.date||''}" onchange="updPayment(${i},'date',this.value)"/></div>
+    <div><label class="form-label">סכום ₪</label><input type="number" class="form-input" value="${p.amount||''}" onchange="updPayment(${i},'amount',this.value)"/></div>
+    <div><label class="form-label">אופן</label><select class="form-select" onchange="updPayment(${i},'method',this.value)">${methodOpts(p.method)}</select></div>
+    <div><label class="form-label">הערה</label><input class="form-input" value="${(p.comment||'').replace(/"/g,'&quot;')}" onchange="updPayment(${i},'comment',this.value)"/></div>
+    <button class="act-btn danger" onclick="removePayment(${i})" style="margin-bottom:4px">🗑</button>
+  </div>`).join('')||`<div style="color:var(--text3);font-size:13px;padding:8px">אין תשלומים עדיין</div>`;
+  document.getElementById('btn-add-payment').style.display=rec.payments.length>=10?'none':'inline-flex';
+}
+function addPaymentRow(){ const rec=window._editingPayRec; if(rec.payments.length>=10)return; rec.payments.push({date:'',amount:'',method:'',comment:''}); renderPaymentRows(); }
+function removePayment(i){ const rec=window._editingPayRec; rec.payments.splice(i,1); renderPaymentRows(); }
+function updPayment(i,field,val){ window._editingPayRec.payments[i][field]=val; }
+function onRegPaidChange(){ const yes=document.getElementById('pay-regpaid').value==='yes'; ['pay-reg-amount-grp','pay-reg-date-grp','pay-reg-method-grp'].forEach(id=>document.getElementById(id).style.display=yes?'':'none'); }
+async function saveDoctorPayment(){
+  const rec=window._editingPayRec;
+  const regPaid=document.getElementById('pay-regpaid').value;
+  if(regPaid==='yes'&&!document.getElementById('pay-regamount').value){ showError('סכום מקדמה חובה כאשר שולמה מקדמה'); return; }
+  const data={
+    reg_fee_paid:regPaid,
+    reg_fee_amount:document.getElementById('pay-regamount').value||null,
+    reg_fee_date:document.getElementById('pay-regdate').value||null,
+    reg_fee_method:document.getElementById('pay-regmethod').value||null,
+    payments:rec.payments.filter(p=>p.date||p.amount),
+    comments:document.getElementById('pay-comments').value.trim()
+  };
+  try{
+    const saved=await api('PUT','/api/doctors/payments/'+editingPaymentDoctorId,data);
+    const i=drPayments.findIndex(p=>p.doctor_id===editingPaymentDoctorId);
+    if(i!==-1)drPayments[i]=saved; else drPayments.push(saved);
+    closeModal('modal-payment'); renderDoctorPayments();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
+
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
 // ══════════════════════════════════════════

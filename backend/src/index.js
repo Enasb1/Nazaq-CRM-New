@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
 const callRoutes = require('./routes/calls');
+const doctorRoutes = require('./routes/doctors');
 const { semRouter, userRouter, configRouter, auditRouter } = require('./routes/other');
 
 const app = express();
@@ -76,6 +77,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/calls', callRoutes);
+app.use('/api/doctors', doctorRoutes);
 app.use('/api/semesters', semRouter);
 app.use('/api/users', userRouter);
 app.use('/api/config', configRouter);
