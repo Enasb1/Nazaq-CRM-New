@@ -95,9 +95,11 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Public lead form (clean URL)
-app.get('/lead', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'lead.html'));
+app.get('/welcome', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'welcome.html'));
 });
+// Old URL redirects to the new one
+app.get('/lead', (req, res) => res.redirect(301, '/welcome'));
 
 // ── 404 (API routes only) ─────────────────────────────
 app.use('/api', (req, res) => {

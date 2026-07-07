@@ -14,6 +14,18 @@ const leadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Israeli phone validation: mobile 05X, landline 02/03/04/08/09, VoIP 072-079; accepts +972 prefix
+function normalizeIsraeliPhone(raw) {
+  let s = String(raw || '').replace(/[\s\-().]/g, '');
+  if (s.startsWith('+972')) s = '0' + s.slice(4);
+  else if (s.startsWith('972')) s = '0' + s.slice(3);
+  return s;
+}
+function isValidIsraeliPhone(raw) {
+  const s = normalizeIsraeliPhone(raw);
+  return /^05\d{8}$/.test(s) || /^0[23489]\d{7}$/.test(s) || /^07[2-9]\d{7}$/.test(s);
+}
+
 // PUBLIC: create a new lead (student with status "new")
 router.post('/lead',
   leadLimiter,
@@ -25,6 +37,11 @@ router.post('/lead',
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: 'נא למלא את השדות הנדרשים' });
 
+    // Israeli phone number required
+    if (!isValidIsraeliPhone(req.body.phone1)) {
+      return res.status(400).json({ error: 'رقم الهاتف غير صحيح — يرجى إدخال رقم إسرائيلي صالح' });
+    }
+
     // Honeypot: bots fill the hidden "website" field; humans don't
     if (req.body.website) return res.status(201).json({ success: true });
 
@@ -32,7 +49,7 @@ router.post('/lead',
       const student = {
         fname: String(req.body.fname || '').trim().slice(0, 100),
         lname: String(req.body.lname || '').trim().slice(0, 100) || null,
-        phone1: String(req.body.phone1 || '').trim().slice(0, 20),
+        phone1: normalizeIsraeliPhone(req.body.phone1),
         email: String(req.body.email || '').trim().slice(0, 150) || null,
         status: 'new',
         source: 'whatsapp',
