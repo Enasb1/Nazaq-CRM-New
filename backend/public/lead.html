@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مركز الناصرة للتأهيل — التسجيل</title>
+<style>
+:root{--yellow:#F5C518;--yellow-dark:#E0B00C;--yellow-pale:#FDF6DC;--text:#1A1A1A;--text2:#555;--text3:#999;--red:#C0392B;--green:#2E7D52;--border:#E5E0D5;--radius:12px;--font:'Segoe UI',Tahoma,Arial,sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:linear-gradient(160deg,#FDF6DC 0%,#FFF 60%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#fff;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.10);max-width:440px;width:100%;padding:32px 28px;}
+.logo{width:56px;height:56px;background:var(--yellow);border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;margin:0 auto 14px;}
+h1{font-size:20px;text-align:center;margin-bottom:6px;}
+.sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:24px;line-height:1.6;}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text2);}
+input{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;font-family:var(--font);margin-bottom:16px;transition:border .2s;}
+input:focus{outline:none;border-color:var(--yellow);}
+.req{color:var(--red);}
+button{width:100%;padding:15px;background:var(--yellow);border:none;border-radius:var(--radius);font-size:16px;font-weight:800;font-family:var(--font);color:#1A1A1A;cursor:pointer;transition:background .2s;}
+button:hover{background:var(--yellow-dark);}
+button:disabled{opacity:.6;cursor:default;}
+.msg{text-align:center;font-size:14px;margin-top:14px;min-height:20px;}
+.msg.err{color:var(--red);}
+.msg.ok{color:var(--green);font-weight:700;}
+.success-view{text-align:center;padding:20px 0;}
+.success-view .check{font-size:56px;margin-bottom:12px;}
+.success-view h2{font-size:19px;margin-bottom:8px;}
+.success-view p{font-size:14px;color:var(--text2);line-height:1.7;}
+.hp{position:absolute;left:-9999px;opacity:0;height:0;overflow:hidden;}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="logo">.Nz</div>
+  <h1>مركز الناصرة للتأهيل</h1>
+  <p class="sub">شكراً لتواصلكم معنا! 🌟<br>يرجى تعبئة التفاصيل التالية وسيقوم فريقنا بالتواصل معكم في أقرب وقت ممكن.</p>
+  <form id="lead-form" onsubmit="return false;">
+    <label>الاسم الكامل <span class="req">*</span></label>
+    <input type="text" id="f-name" autocomplete="name" required/>
+    <label>رقم الهاتف <span class="req">*</span></label>
+    <input type="tel" id="f-phone" dir="ltr" style="text-align:right" autocomplete="tel" required/>
+    <label>البريد الإلكتروني</label>
+    <input type="email" id="f-email" dir="ltr" style="text-align:right" autocomplete="email"/>
+    <!-- honeypot -->
+    <div class="hp"><input type="text" id="f-website" tabindex="-1" autocomplete="off"/></div>
+    <button id="btn-send" onclick="submitLead()">إرسال</button>
+    <div class="msg" id="form-msg"></div>
+  </form>
+</div>
+<script>
+async function submitLead(){
+  const name=document.getElementById('f-name').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const msg=document.getElementById('form-msg');
+  msg.className='msg';
+  if(!name||!phone){ msg.textContent='يرجى تعبئة الاسم ورقم الهاتف'; msg.className='msg err'; return; }
+  // Split name into first + last
+  const parts=name.split(/\s+/);
+  const fname=parts[0]||'';
+  const lname=parts.slice(1).join(' ')||'';
+  const btn=document.getElementById('btn-send');
+  btn.disabled=true; btn.textContent='جارٍ الإرسال...';
+  try{
+    const r=await fetch('/api/public/lead',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fname,lname,phone1:phone,email,website:document.getElementById('f-website').value})
+    });
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'حدث خطأ، حاول مرة أخرى'); }
+    document.getElementById('card').innerHTML=`
+      <div class="success-view">
+        <div class="check">✅</div>
+        <h2>تم استلام طلبكم بنجاح!</h2>
+        <p>شكراً لكم على التواصل مع<br><strong>مركز الناصرة للتأهيل</strong><br><br>سيقوم فريقنا بالتواصل معكم في أقرب وقت ممكن.</p>
+      </div>`;
+  }catch(e){
+    msg.textContent=e.message; msg.className='msg err';
+    btn.disabled=false; btn.textContent='إرسال';
+  }
+}
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
 const callRoutes = require('./routes/calls');
 const doctorRoutes = require('./routes/doctors');
+const publicRoutes = require('./routes/public');
 const { semRouter, userRouter, configRouter, auditRouter } = require('./routes/other');
 
 const app = express();
@@ -75,6 +76,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── ROUTES ────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/doctors', doctorRoutes);
@@ -91,6 +93,11 @@ app.get('/health', (req, res) => {
 // ── SERVE FRONTEND ────────────────────────────────────
 const path = require('path');
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Public lead form (clean URL)
+app.get('/lead', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'lead.html'));
+});
 
 // ── 404 (API routes only) ─────────────────────────────
 app.use('/api', (req, res) => {
