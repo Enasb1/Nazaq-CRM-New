@@ -121,6 +121,7 @@ tr:hover td{background:var(--yellow-pale);}
 .s-callback{background:var(--orange-bg);color:var(--orange);}.s-callback::before{background:var(--orange);}
 .s-notinterested{background:#F4F4F4;color:#666;}.s-notinterested::before{background:#999;}
 .s-registered{background:var(--green-bg);color:var(--green);}.s-registered::before{background:var(--green);}
+.s-invited{background:#E0F4F4;color:#0E7C7B;}.s-invited::before{background:#0E7C7B;}
 
 /* SEM BADGE */
 .sem-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;}
@@ -574,7 +575,7 @@ const T = {
     total_students:'סה"כ תלמידים',registered:'נרשמו',callback_needed:'ממתינים לחזרה',total_calls:'סה"כ שיחות',pending_followups:'מעקב ממתין',
     status_breakdown:'פילוח סטטוס',pending_followup_reminders:'תזכורות מעקב',
     add_student:'הוסף תלמיד',add_call:'הוסף שיחה',export_excel:'ייצוא Excel',add_semester:'הוסף סמסטר',
-    all_status:'כל הסטטוסים',s_new:'חדש',s_contacted:'יצרנו קשר',s_callback:'ממתין לחזרה',s_notinterested:'לא מעוניין',s_registered:'נרשם',
+    all_status:'כל הסטטוסים',s_new:'חדש',s_contacted:'יצרנו קשר',s_callback:'ממתין לחזרה',s_notinterested:'לא מעוניין',s_registered:'נרשם',s_invited:'הוזמן',
     all_semesters:'כל הסמסטרים',all_years:'כל השנים',
     edit:'עריכה',log_call:'רשום שיחה',save:'שמור',cancel:'ביטול',delete:'מחק',view:'צפייה',
     no_calls:'אין שיחות רשומות',no_students:'אין תלמידים',overdue:'באיחור',logout:'יציאה',confirm_delete:'האם למחוק?',
@@ -587,7 +588,7 @@ const T = {
     total_students:'Total Students',registered:'Registered',callback_needed:'Callback Needed',total_calls:'Total Calls',pending_followups:'Pending Follow-ups',
     status_breakdown:'Status Breakdown',pending_followup_reminders:'Follow-up Reminders',
     add_student:'Add Student',add_call:'Add Call',export_excel:'Export Excel',add_semester:'Add Semester',
-    all_status:'All Statuses',s_new:'New',s_contacted:'Contacted',s_callback:'Callback Needed',s_notinterested:'Not Interested',s_registered:'Registered',
+    all_status:'All Statuses',s_new:'New',s_contacted:'Contacted',s_callback:'Callback Needed',s_notinterested:'Not Interested',s_registered:'Registered',s_invited:'Invited',
     all_semesters:'All Semesters',all_years:'All Years',
     edit:'Edit',log_call:'Log Call',save:'Save',cancel:'Cancel',delete:'Delete',view:'View',
     no_calls:'No calls recorded',no_students:'No students found',overdue:'Overdue',logout:'Logout',confirm_delete:'Confirm delete?',
@@ -600,7 +601,7 @@ const T = {
     total_students:'إجمالي الطلاب',registered:'مسجلون',callback_needed:'يحتاج معاودة',total_calls:'إجمالي المكالمات',pending_followups:'متابعة معلقة',
     status_breakdown:'توزيع الحالات',pending_followup_reminders:'تذكيرات المتابعة',
     add_student:'إضافة طالب',add_call:'إضافة مكالمة',export_excel:'تصدير Excel',add_semester:'إضافة فصل',
-    all_status:'جميع الحالات',s_new:'جديد',s_contacted:'تم التواصل',s_callback:'يحتاج معاودة',s_notinterested:'غير مهتم',s_registered:'مسجل',
+    all_status:'جميع الحالات',s_new:'جديد',s_contacted:'تم التواصل',s_callback:'يحتاج معاودة',s_notinterested:'غير مهتم',s_registered:'مسجل',s_invited:'تمت دعوته',
     all_semesters:'كل الفصول',all_years:'كل السنوات',
     edit:'تعديل',log_call:'تسجيل مكالمة',save:'حفظ',cancel:'إلغاء',delete:'حذف',view:'عرض',
     no_calls:'لا توجد مكالمات',no_students:'لا يوجد طلاب',overdue:'متأخر',logout:'خروج',confirm_delete:'تأكيد الحذف؟',
@@ -639,9 +640,9 @@ const DEFAULT_STUDENT_FIELDS = [
   {key:'age',        label:'גיל',               type:'computed', locked:true, required:false, tableCol:false, section:'personal'},
   {key:'city',       label:'עיר',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'address',    label:'כתובת',             type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
-  {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'status', options:['new','contacted','callback','notinterested','registered']},
+  {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'status', options:['new','contacted','callback','notinterested','registered','invited']},
   {key:'semester_id',label:'סמסטר',             type:'semester', locked:false,required:false, tableCol:true,  section:'status'},
-  {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'status', options:['social_media','friend','school','radio','other']},
+  {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'status', options:['social_media','friend','school','radio','signage','other']},
   {key:'school',     label:'בית ספר',           type:'text',     locked:false,required:false, tableCol:false, section:'school'},
   {key:'bagrut',     label:'בגרות שלום',        type:'select',   locked:false,required:false, tableCol:false, section:'school', options:['yes','no','partial']},
   {key:'parent_name', label:'שם הורה',          type:'text',     locked:false,required:false, tableCol:false, section:'parent'},
@@ -862,9 +863,9 @@ function showPage(p){
 // ══════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════
-const STATUS_LABELS=()=>({new:t('s_new'),contacted:t('s_contacted'),callback:t('s_callback'),notinterested:t('s_notinterested'),registered:t('s_registered')});
-const STATUS_CLASS={new:'s-new',contacted:'s-contacted',callback:'s-callback',notinterested:'s-notinterested',registered:'s-registered'};
-const HOW_HEARD_MAP=()=>({social_media:'רשתות חברתיות',friend:'חבר/ה',school:'בית ספר',radio:'רדיו',other:'אחר'});
+const STATUS_LABELS=()=>({new:t('s_new'),contacted:t('s_contacted'),callback:t('s_callback'),notinterested:t('s_notinterested'),registered:t('s_registered'),invited:t('s_invited')});
+const STATUS_CLASS={new:'s-new',contacted:'s-contacted',callback:'s-callback',notinterested:'s-notinterested',registered:'s-registered',invited:'s-invited'};
+const HOW_HEARD_MAP=()=>({social_media:'רשתות חברתיות',friend:'חבר/ה',school:'בית ספר',radio:'רדיו',signage:'שילוט',other:'אחר'});
 const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
 const SEM_TYPE_COLOR={autumn:{bg:'#FEF0E3',color:'#D4670A'},spring:{bg:'#E8F5EE',color:'#2E7D52'},summer:{bg:'#FFF8DC',color:'#C8860A'}};
 
@@ -1270,7 +1271,7 @@ function inputHTML(f,s,semOpts){
     return`<select class="form-select" id="${id}">${semOpts||''}</select>`;
   }
   if(f.key==='how_heard'){
-    const opts=['social_media','friend','school','radio','other'];
+    const opts=['social_media','friend','school','radio','signage','other'];
     return`<select class="form-select" id="${id}"><option value="">—</option>${opts.map(o=>`<option value="${o}"${val===o?'selected':''}>${HOW_HEARD_MAP()[o]}</option>`).join('')}</select>`;
   }
   if(f.key==='direction'){
