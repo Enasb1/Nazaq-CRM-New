@@ -1021,7 +1021,10 @@ function renderStudents(){
       const lc=lastCallDate(s.id);
       const cells=cols.map(f=>{
         const val=s[f.key];
-        if(f.key==='fname') return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong></td>`;
+        if(f.key==='fname'){
+          const waBadge=s.source==='whatsapp'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#E8F8EF;color:#1FA855;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="נוסף אוטומטית מוואטסאפ">💬 ${s.lead_date?formatDate(s.lead_date):''}</span>`:'';
+          return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong>${waBadge}</td>`;
+        }
         if(f.key==='status') return`<td>${statusBadge(s.status)}</td>`;
         if(f.key==='semester_id') return`<td>${semBadgeHTML(s.semester_id)}</td>`;
         if(f.key==='how_heard') return`<td>${HOW_HEARD_MAP()[val]||val||'—'}</td>`;
