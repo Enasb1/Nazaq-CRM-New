@@ -694,6 +694,20 @@ let currentUser=null;
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2);}
 function formatDate(d){if(!d)return'';return d.toString().substring(0,10);}
+// ── Validation helpers (Israeli phone + email format) ──
+function normIL(raw){
+  let s=String(raw||'').replace(/[\s\-().]/g,'');
+  if(s.startsWith('+972'))s='0'+s.slice(4);
+  else if(s.startsWith('972'))s='0'+s.slice(3);
+  return s;
+}
+function isValidIL(raw){
+  const s=normIL(raw);
+  return /^05\d{8}$/.test(s)||/^0[23489]\d{7}$/.test(s)||/^07[2-9]\d{7}$/.test(s);
+}
+function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim()); }
+function ilPhoneFeedback(el){ const v=el.value.trim(); el.style.borderColor=!v?'':(isValidIL(v)?'var(--green)':'var(--red)'); }
+function emailFieldFeedback(el){ const v=el.value.trim(); el.style.borderColor=!v?'':(isValidEmail(v)?'var(--green)':'var(--red)'); }
 function isOverdue(d){if(!d)return false;return new Date(d)<new Date();}
 function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date)).length;}
 
@@ -1273,7 +1287,8 @@ function inputHTML(f,s,semOpts){
   }
   const typeMap={text:'text',number:'number',email:'email',phone:'tel',date:'date',datetime:'datetime-local'};
   const inputType=typeMap[f.type]||'text';
-  return`<input class="form-input" type="${inputType}" id="${id}" value="${val}"/>`;
+  const fb=f.type==='phone'?' oninput="ilPhoneFeedback(this)" dir="ltr" style="text-align:right"':(f.type==='email'?' oninput="emailFieldFeedback(this)" dir="ltr" style="text-align:right"':'');
+  return`<input class="form-input" type="${inputType}" id="${id}" value="${val}"${fb}/>`;
 }
 
 function calcAgeFromBirthdate(bd){
@@ -1299,6 +1314,21 @@ async function saveStudent(){
   });
   // Always recompute age from birthdate
   if(data.birthdate) data.age=String(calcAgeFromBirthdate(data.birthdate)||'');
+  // Validate phone + email formats (Israeli phone; email shape)
+  const fmtErrors=[];
+  [['phone1','טלפון 1'],['phone2','טלפון 2'],['parent_phone','טלפון הורה']].forEach(([k,label])=>{
+    if(data[k]&&!isValidIL(data[k])){ fmtErrors.push(`${label} אינו מספר ישראלי תקין`); const el=document.getElementById(`sf-${k}`); if(el)el.style.borderColor='var(--red)'; }
+    else if(data[k]) data[k]=normIL(data[k]);
+  });
+  [['email','אימייל'],['parent_email','אימייל הורה']].forEach(([k,label])=>{
+    if(data[k]&&!isValidEmail(data[k])){ fmtErrors.push(`${label} אינו בפורמט תקין`); const el=document.getElementById(`sf-${k}`); if(el)el.style.borderColor='var(--red)'; }
+  });
+  if(fmtErrors.length){
+    let errEl=document.getElementById('sf-error');
+    if(!errEl){errEl=document.createElement('div');errEl.id='sf-error';errEl.style.cssText='grid-column:1/-1;color:var(--red);font-size:12px;background:var(--red-bg);padding:8px 12px;border-radius:8px;';document.getElementById('student-form').appendChild(errEl);}
+    errEl.textContent=`⚠️ ${fmtErrors.join(' · ')}`;
+    return;
+  }
   REQUIRED_KEYS.forEach(k=>{
     if(!data[k]){
       missing.push(k);

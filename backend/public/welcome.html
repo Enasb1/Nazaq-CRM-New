@@ -40,7 +40,7 @@ button:disabled{opacity:.6;cursor:default;}
     <label>رقم الهاتف <span class="req">*</span></label>
     <input type="tel" id="f-phone" dir="ltr" style="text-align:right" autocomplete="tel" required oninput="phoneFeedback()"/>
     <label>البريد الإلكتروني</label>
-    <input type="email" id="f-email" dir="ltr" style="text-align:right" autocomplete="email"/>
+    <input type="email" id="f-email" dir="ltr" style="text-align:right" autocomplete="email" oninput="emailFeedback()"/>
     <!-- honeypot -->
     <div class="hp"><input type="text" id="f-website" tabindex="-1" autocomplete="off"/></div>
     <button id="btn-send" onclick="submitLead()">إرسال</button>
@@ -64,6 +64,13 @@ function phoneFeedback(){
   if(!v){ el.style.borderColor='var(--border)'; return; }
   el.style.borderColor=isValidIL(v)?'var(--green)':'var(--red)';
 }
+function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim()); }
+function emailFeedback(){
+  const el=document.getElementById('f-email');
+  const v=el.value.trim();
+  if(!v){ el.style.borderColor='var(--border)'; return; }
+  el.style.borderColor=isValidEmail(v)?'var(--green)':'var(--red)';
+}
 async function submitLead(){
   const name=document.getElementById('f-name').value.trim();
   const phone=document.getElementById('f-phone').value.trim();
@@ -72,6 +79,7 @@ async function submitLead(){
   msg.className='msg';
   if(!name||!phone){ msg.textContent='يرجى تعبئة الاسم ورقم الهاتف'; msg.className='msg err'; return; }
   if(!isValidIL(phone)){ msg.textContent='رقم الهاتف غير صحيح — يرجى إدخال رقم إسرائيلي صالح (مثال: 050-1234567)'; msg.className='msg err'; document.getElementById('f-phone').focus(); return; }
+  if(email&&!isValidEmail(email)){ msg.textContent='صيغة البريد الإلكتروني غير صحيحة'; msg.className='msg err'; document.getElementById('f-email').focus(); return; }
   // Split name into first + last
   const parts=name.split(/\s+/);
   const fname=parts[0]||'';
