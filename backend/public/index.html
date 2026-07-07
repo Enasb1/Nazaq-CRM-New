@@ -965,11 +965,12 @@ function renderStudents(){
   const thead=document.getElementById('students-thead');
   thead.innerHTML='<th></th>'+cols.map(f=>{
     const sc=f.key==='created'?'last_call':f.key;
+    const label=f.key==='fname'?'שם':(f.key==='created'?'תאריך שיחה אחרונה':f.label);
     if(sortable[f.key]||f.key==='created'){
       const arrow=studentSort.col===sc?(studentSort.dir==='asc'?' ▲':' ▼'):'';
-      return`<th style="cursor:pointer" onclick="setStudentSort('${sc}')">${f.key==='fname'?'שם':f.label}${arrow}</th>`;
+      return`<th style="cursor:pointer" onclick="setStudentSort('${sc}')">${label}${arrow}</th>`;
     }
-    return`<th>${f.key==='fname'?'שם':f.label}</th>`;
+    return`<th>${label}</th>`;
   }).join('')+'<th>פעולות</th>';
 
   // Filter
@@ -1574,7 +1575,7 @@ async function addCallToHistory(){
     const saved=await api('POST','/api/calls',data);
     calls.unshift(saved);
     renderCallHistoryBody(false); // collapse new-call, refresh history
-    renderCalls(); renderDashboard();
+    renderCalls(); renderDashboard(); renderStudents();
   }catch(e){ showError('שגיאה בשמירה: '+e.message); }
 }
 
@@ -1584,7 +1585,7 @@ async function deleteCallFromHistory(id){
     await api('DELETE','/api/calls/'+id);
     calls=calls.filter(c=>c.id!==id);
     renderCallHistoryBody(false);
-    renderCalls(); renderDashboard();
+    renderCalls(); renderDashboard(); renderStudents();
   }catch(e){ showError('שגיאה במחיקה: '+e.message); }
 }
 
@@ -1631,7 +1632,7 @@ async function saveCall(addAnother){
     } else {
       calls.unshift(saved);
     }
-    renderCalls(); renderDashboard();
+    renderCalls(); renderDashboard(); renderStudents();
     if(addAnother && !editingCallId){
       // Keep same student, reset call detail fields for a fresh entry
       buildCallForm({student_id:studentId, datetime:new Date().toISOString().substring(0,16), direction:'initiated', followup:'no'});
@@ -1645,7 +1646,7 @@ async function deleteCall(id){
   try{
     await deleteCall_api(id);
     calls=calls.filter(c=>c.id!==id);
-    renderCalls(); renderDashboard();
+    renderCalls(); renderDashboard(); renderStudents();
   }catch(e){ showError('שגיאה במחיקה: '+e.message); }
 }
 
