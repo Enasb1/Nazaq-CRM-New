@@ -838,11 +838,27 @@ document.getElementById('login-pass').addEventListener('input',()=>{
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function doLogout(){
+  authToken=null;
+  currentUser=null;
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-screen').style.display='flex';
   ['login-user','login-pass'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('login-error').textContent='';
 }
+
+// ── Inactivity auto-logout (15 minutes) ──
+const INACTIVITY_LIMIT_MS=15*60*1000;
+let lastActivityTs=Date.now();
+['click','keydown','mousemove','scroll','touchstart'].forEach(ev=>
+  document.addEventListener(ev,()=>{lastActivityTs=Date.now();},{passive:true})
+);
+function checkInactivity(){
+  if(authToken && Date.now()-lastActivityTs>INACTIVITY_LIMIT_MS){
+    doLogout();
+    document.getElementById('login-error').textContent='⏳ נותקת עקב חוסר פעילות';
+  }
+}
+setInterval(checkInactivity,30000);
 
 // ══════════════════════════════════════════
 // NAVIGATION
