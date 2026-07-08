@@ -290,6 +290,7 @@ tr:hover td{background:var(--yellow-pale);}
     <button class="nav-tab" onclick="showPage('students')" id="tab-students">👥 <span data-t="nav_students">תלמידים</span></button>
     <button class="nav-tab" onclick="showPage('calls')" id="tab-calls">📞 <span data-t="nav_calls">שיחות</span> <span class="nbadge" id="pending-badge" style="display:none">0</span></button>
     <button class="nav-tab" onclick="showPage('semesters')" id="tab-semesters">📅 <span data-t="nav_semesters">סמסטרים</span></button>
+    <button class="nav-tab" onclick="showPage('meetings')" id="tab-meetings">🗓️ <span>פגישות</span></button>
     <button class="nav-tab" onclick="showPage('doctors')" id="tab-doctors">🩺 <span>קורס הכשרת רופאים</span></button>
     <button class="nav-tab" id="tab-config" style="display:none" onclick="showPage('config')">🔧 <span data-t="nav_config">הגדרות שדות</span></button>
   </div>
@@ -353,6 +354,14 @@ tr:hover td{background:var(--yellow-pale);}
         <button class="btn btn-primary" id="btn-add-sem" onclick="openAddSemester()">＋ <span data-t="add_semester">הוסף סמסטר</span></button>
       </div>
       <div id="semesters-list"></div>
+    </div>
+
+    <!-- MEETINGS -->
+    <div id="page-meetings" class="page">
+      <div class="section-header">
+        <div class="section-title">🗓️ פגישות עם תלמידים</div>
+      </div>
+      <div id="meetings-list"></div>
     </div>
 
     <!-- DOCTOR TRAINING COURSE -->
@@ -643,6 +652,7 @@ const DEFAULT_STUDENT_FIELDS = [
   {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'status', options:['new','contacted','callback','notinterested','registered','invited']},
   {key:'semester_id',label:'סמסטר',             type:'semester', locked:false,required:false, tableCol:true,  section:'status'},
   {key:'how_heard',  label:'איך שמעת עלינו',   type:'select',   locked:false,required:false, tableCol:false, section:'status', options:['social_media','friend','school','radio','signage','other']},
+  {key:'appointment_at', label:'מועד פגישה',     type:'datetime', locked:true, required:false, tableCol:false, section:'status'},
   {key:'school',     label:'בית ספר',           type:'text',     locked:false,required:false, tableCol:false, section:'school'},
   {key:'bagrut',     label:'בגרות שלום',        type:'select',   locked:false,required:false, tableCol:false, section:'school', options:['yes','no','partial']},
   {key:'parent_name', label:'שם הורה',          type:'text',     locked:false,required:false, tableCol:false, section:'parent'},
@@ -873,6 +883,7 @@ function showPage(p){
   if(p==='dashboard') renderDashboard();
   if(p==='semesters') renderSemesters();
   if(p==='doctors') loadDoctorData();
+  if(p==='meetings') renderMeetings();
   if(p==='config') renderConfig();
 }
 
@@ -1131,6 +1142,7 @@ function openDetail(id){
       let val=s[f.key];
       if(val===undefined||val===null||val==='') val='—';
       else if(f.key==='status') val=STATUS_LABELS()[val]||val;
+      else if(f.key==='appointment_at') val=String(val).substring(0,16).replace('T',' ');
       else if(f.key==='semester_id') val=getSemester(val)?.name||'—';
       else if(f.key==='how_heard') val=HOW_HEARD_MAP()[val]||val;
       else if(f.key==='direction') val=DIRECTION_MAP()[val]||val;
@@ -1235,6 +1247,46 @@ function buildStudentForm(s){
   html+=`<div class="form-group full" style="font-size:11px;color:var(--text3)">${req} שדות חובה</div>`;
   document.getElementById('student-form').innerHTML=html;
   recalcAge(s);
+  toggleAppointmentField();
+}
+
+function toggleAppointmentField(){
+  const st=document.getElementById('sf-status');
+  const fg=document.getElementById('fg-appointment_at');
+  if(st&&fg) fg.style.display=st.value==='invited'?'':'none';
+}
+
+// ── Meetings page ──
+function renderMeetings(){
+  const el=document.getElementById('meetings-list');
+  const withAppt=students.filter(s=>s.appointment_at);
+  if(!withAppt.length){ el.innerHTML=`<div class="empty-state"><div class="icon">🗓️</div><div>אין פגישות מתוכננות. קבע פגישה על ידי שינוי סטטוס תלמיד ל"הוזמן".</div></div>`; return; }
+  const now=new Date();
+  const upcoming=withAppt.filter(s=>new Date(s.appointment_at)>=now).sort((a,b)=>new Date(a.appointment_at)-new Date(b.appointment_at));
+  const past=withAppt.filter(s=>new Date(s.appointment_at)<now).sort((a,b)=>new Date(b.appointment_at)-new Date(a.appointment_at));
+  const row=s=>{
+    const dt=String(s.appointment_at).substring(0,16).replace('T',' ');
+    const isToday=String(s.appointment_at).substring(0,10)===new Date().toISOString().substring(0,10);
+    return`<tr style="cursor:pointer${isToday?';background:var(--yellow-pale)':''}" onclick="openDetail('${s.id}')">
+      <td style="font-weight:700;white-space:nowrap">${isToday?'⭐ ':''}${dt}</td>
+      <td><strong>${s.fname||''} ${s.lname||''}</strong></td>
+      <td dir="ltr" style="text-align:right">${s.phone1||'—'}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td onclick="event.stopPropagation()"><div class="actions">
+        <button class="act-btn" onclick="openDetail('${s.id}')">👁</button>
+        <button class="act-btn" onclick="openStudentCallHistory('${s.id}')">📞</button>
+        <button class="act-btn" onclick="openEditStudent('${s.id}')">✏️</button>
+      </div></td></tr>`;
+  };
+  const table=rows=>`<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>מועד</th><th>שם</th><th>טלפון</th><th>סטטוס</th><th>פעולות</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table></div>`;
+  let html='';
+  html+=`<div class="form-section-title" style="margin-bottom:8px">🔜 פגישות קרובות (${upcoming.length})</div>`;
+  html+=upcoming.length?table(upcoming):`<div style="color:var(--text3);font-size:13px;padding:8px 0 16px">אין פגישות קרובות</div>`;
+  if(past.length){
+    html+=`<div class="form-section-title" style="margin:20px 0 8px">✔️ פגישות שעברו (${past.length})</div>`;
+    html+=table(past);
+  }
+  el.innerHTML=html;
 }
 
 function collapsibleSection(key,label,fields,s,semOpts,req){
@@ -1262,7 +1314,7 @@ function fieldFormGroup(f,s,semOpts,req){
   if(f.key==='created') return '';
   const isReq=f.required;
   const fullClass=(f.type==='textarea'||f.key==='address'||f.key==='notes')?' full':'';
-  return`<div class="form-group${fullClass}"><label class="form-label">${f.label}${isReq?' '+req:''}</label>${inputHTML(f,s,semOpts)}</div>`;
+  return`<div class="form-group${fullClass}" id="fg-${f.key}"><label class="form-label">${f.label}${isReq?' '+req:''}</label>${inputHTML(f,s,semOpts)}</div>`;
 }
 
 function inputHTML(f,s,semOpts){
@@ -1281,7 +1333,10 @@ function inputHTML(f,s,semOpts){
     return`<select class="form-select" id="${id}"><option value="">—</option>${['yes','no','partial'].map(o=>`<option value="${o}"${val===o?'selected':''}>${map[o]}</option>`).join('')}</select>`;
   }
   if(f.key==='status'){
-    return`<select class="form-select" id="${id}">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select>`;
+    return`<select class="form-select" id="${id}" onchange="toggleAppointmentField()">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select>`;
+  }
+  if(f.key==='appointment_at'){
+    return`<input class="form-input" type="datetime-local" id="${id}" value="${val?String(val).substring(0,16):''}"/>`;
   }
   if(f.key==='semester_id'){
     return`<select class="form-select" id="${id}">${semOpts||''}</select>`;
@@ -1557,7 +1612,8 @@ function renderCallHistoryBody(expandNew){
         <div class="form-group"><label class="form-label">תאריך ושעה</label><input type="datetime-local" class="form-input" id="nc-datetime" value="${new Date().toISOString().substring(0,16)}"/></div>
         <div class="form-group"><label class="form-label">כיוון</label><select class="form-select" id="nc-direction"><option value="initiated">יוצאת</option><option value="received">נכנסת</option></select></div>
         <div class="form-group"><label class="form-label">מעקב</label><select class="form-select" id="nc-followup" onchange="toggleNcFollowup()"><option value="no">לא</option><option value="yes">כן</option></select></div>
-        <div class="form-group"><label class="form-label">סטטוס התלמיד</label><select class="form-select" id="nc-status">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">סטטוס התלמיד</label><select class="form-select" id="nc-status" onchange="toggleNcAppointment()">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group" id="nc-appt-group" style="display:${(s.status==='invited')?'':'none'}"><label class="form-label">מועד פגישה</label><input type="datetime-local" class="form-input" id="nc-appointment" value="${s.appointment_at?String(s.appointment_at).substring(0,16):''}"/></div>
         <div class="form-group full"><label class="form-label">פרטי השיחה</label><textarea class="form-input" id="nc-details" rows="3"></textarea></div>
         <div class="form-group" id="nc-fudate-group" style="display:none"><label class="form-label">תאריך מעקב</label><input type="date" class="form-input" id="nc-followup_date"/></div>
       </div>
@@ -1605,6 +1661,11 @@ function toggleNewCall(){
   body.style.display=open?'block':'none';
   arrow.textContent=open?'▲':'▼';
 }
+function toggleNcAppointment(){
+  const st=document.getElementById('nc-status');
+  const g=document.getElementById('nc-appt-group');
+  if(st&&g) g.style.display=st.value==='invited'?'':'none';
+}
 function toggleNcFollowup(){
   const v=document.getElementById('nc-followup').value;
   document.getElementById('nc-fudate-group').style.display=v==='yes'?'':'none';
@@ -1646,8 +1707,13 @@ async function addCallToHistory(){
     }
     // Update student status if changed
     const newStatus=document.getElementById('nc-status')?.value;
-    if(newStatus&&newStatus!==s.status){
-      const upd=await api('PUT','/api/students/'+historyStudentId,{status:newStatus});
+    const appt=document.getElementById('nc-appointment')?.value||'';
+    const statusChanged=newStatus&&newStatus!==s.status;
+    const apptChanged=newStatus==='invited'&&appt&&appt!==String(s.appointment_at||'').substring(0,16);
+    if(statusChanged||apptChanged){
+      const payload={status:newStatus};
+      if(newStatus==='invited'&&appt) payload.appointment_at=appt;
+      const upd=await api('PUT','/api/students/'+historyStudentId,payload);
       const i=students.findIndex(x=>x.id===historyStudentId);
       if(i!==-1) students[i]={...students[i],...upd};
     }
