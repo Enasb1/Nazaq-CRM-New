@@ -70,7 +70,6 @@ router.post('/',
         created_by: req.user.id
       };
       const encrypted = encryptStudent(studentData);
-      console.log('[CREATE STUDENT] Inserting fields:', Object.keys(encrypted).join(', '));
       const { data, error } = await supabase.from('students').insert(encrypted).select().single();
       if (error) {
         console.error('[CREATE STUDENT] Supabase error:', error.message, '| details:', error.details, '| hint:', error.hint);

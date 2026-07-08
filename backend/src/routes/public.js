@@ -63,7 +63,7 @@ router.post('/lead',
         console.error('[PUBLIC LEAD] insert error:', error.message);
         return res.status(500).json({ error: 'שגיאה בשמירה' });
       }
-      console.log(`[PUBLIC LEAD] Created lead ${data.id} for "${student.fname}"`);
+      console.log(`[PUBLIC LEAD] Created lead ${data.id}`);
       res.status(201).json({ success: true });
     } catch (err) {
       console.error('[PUBLIC LEAD] error:', err.message);
