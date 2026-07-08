@@ -1394,7 +1394,7 @@ function renderCalls(){
   // Filter
   rows=rows.filter(r=>{
     if(q&&!(`${r.name} ${r.phone}`).toLowerCase().includes(q)) return false;
-    const anyFu=r.list.some(c=>c.followup==='yes');
+    const anyFu=r.list.some(c=>c.followup==='yes'&&!c.followup_done);
     if(ffu==='yes'&&!anyFu) return false;
     if(ffu==='no'&&anyFu) return false;
     return true;
@@ -1403,12 +1403,12 @@ function renderCalls(){
   if(!rows.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
   tbody.innerHTML=rows.map(r=>{
     const dt=(r.latest.datetime||'').substring(0,16).replace('T',' ');
-    const anyFu=r.list.some(c=>c.followup==='yes');
-    const fuCall=r.list.find(c=>c.followup==='yes'&&c.followup_date);
+    const anyFu=r.list.some(c=>c.followup==='yes'&&!c.followup_done);
+    const fuCall=r.list.find(c=>c.followup==='yes'&&!c.followup_done&&c.followup_date);
     const fu=anyFu?`<span style="color:var(--orange);font-weight:700">✓ ${fuCall?formatDate(fuCall.followup_date):''}</span>`:'—';
     const editTarget=r.studentId?`openStudentCallHistory('${r.studentId}')`:`openEditCall('${r.latest.id}')`;
     return`<tr style="cursor:pointer" onclick="${editTarget}">
-      <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span></td>
+      <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span>${!r.studentId||!students.find(s=>s.id===r.studentId)?' <span style="color:var(--red);font-size:11px">(תלמיד נמחק)</span>':''}</td>
       <td style="font-size:12px">${dt||'—'}</td>
       <td dir="ltr" style="text-align:right">${r.phone||'—'}</td>
       <td>${fu}</td>
@@ -1510,6 +1510,7 @@ function pickStudent(id){
 let historyStudentId=null;
 function openStudentCallHistory(studentId){
   historyStudentId=studentId;
+  _callbackForCallId=null;
   const s=students.find(x=>x.id===studentId);
   if(!s)return;
   document.getElementById('call-modal-title').textContent=`שיחות — ${s.fname||''} ${s.lname||''}`.trim();
@@ -1568,7 +1569,12 @@ function renderCallHistoryBody(expandNew){
           <button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button>
         </div>
         <div style="font-size:13px;line-height:1.5;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word">${c.details?c.details:'<span style="color:var(--text3)">אין פרטים</span>'}</div>
-        ${c.followup==='yes'?`<div style="font-size:12px;margin-top:6px;color:${over?'var(--red)':'var(--orange)'};font-weight:600">⏰ מעקב: ${formatDate(c.followup_date)||''}${over?' (באיחור)':''}</div>`:''}
+        ${c.followup==='yes'?(c.followup_done
+          ?`<div style="font-size:12px;margin-top:6px;color:var(--green);font-weight:600">✓ מעקב בוצע (${formatDate(c.followup_date)||''})</div>`
+          :`<div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+              <span style="font-size:12px;color:${over?'var(--red)':'var(--orange)'};font-weight:600">⏰ מעקב: ${formatDate(c.followup_date)||''}${over?' (באיחור)':''}</span>
+              <button class="btn btn-secondary btn-sm" onclick="startCallback('${c.id}')" style="font-size:11px;padding:4px 10px">✓ ביצעתי שיחה חוזרת</button>
+            </div>`):''}
       </div>`;
     });
     html+=`</div>`;
@@ -1586,6 +1592,15 @@ function toggleNewCall(){
 function toggleNcFollowup(){
   const v=document.getElementById('nc-followup').value;
   document.getElementById('nc-fudate-group').style.display=v==='yes'?'':'none';
+}
+
+let _callbackForCallId=null;
+function startCallback(callId){
+  _callbackForCallId=callId;
+  renderCallHistoryBody(true); // open the new-call section
+  const det=document.getElementById('nc-details');
+  if(det){ det.value='שיחה חוזרת: '; det.focus(); }
+  document.getElementById('new-call-body')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 async function addCallToHistory(){
@@ -1606,6 +1621,13 @@ async function addCallToHistory(){
   try{
     const saved=await api('POST','/api/calls',data);
     calls.unshift(saved);
+    // If this was a callback for a pending follow-up, mark the original as done
+    if(_callbackForCallId){
+      const upd=await api('PUT','/api/calls/'+_callbackForCallId,{followup_done:true});
+      const ci=calls.findIndex(c=>c.id===_callbackForCallId);
+      if(ci!==-1) calls[ci]={...calls[ci],...upd};
+      _callbackForCallId=null;
+    }
     // Update student status if changed
     const newStatus=document.getElementById('nc-status')?.value;
     if(newStatus&&newStatus!==s.status){
