@@ -1632,6 +1632,7 @@ let historyStudentId=null;
 function openStudentCallHistory(studentId){
   historyStudentId=studentId;
   _callbackForCallId=null;
+  editingHistCallId=null;
   const s=students.find(x=>x.id===studentId);
   if(!s)return;
   document.getElementById('call-modal-title').textContent=`שיחות — ${s.fname||''} ${s.lname||''}`.trim();
@@ -1678,6 +1679,24 @@ function renderCallHistoryBody(expandNew){
   } else {
     html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
     studentCalls.forEach((c,idx)=>{
+      if(c.id===editingHistCallId){
+        // Inline edit form for this call
+        html+=`<div style="border:2px solid var(--yellow);border-radius:10px;padding:12px 14px;background:var(--yellow-pale)">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div class="form-group"><label class="form-label">תאריך ושעה</label><input type="datetime-local" class="form-input" id="eh-datetime" value="${c.datetime?String(c.datetime).substring(0,16):''}"/></div>
+            <div class="form-group"><label class="form-label">מבצע השיחה</label><input class="form-input" id="eh-caller" value="${(c.caller||'').replace(/"/g,'&quot;')}"/></div>
+            <div class="form-group"><label class="form-label">כיוון</label><select class="form-select" id="eh-direction"><option value="initiated"${c.direction!=='received'?'selected':''}>יוצאת</option><option value="received"${c.direction==='received'?'selected':''}>נכנסת</option></select></div>
+            <div class="form-group"><label class="form-label">מעקב</label><select class="form-select" id="eh-followup" onchange="document.getElementById('eh-fudate-grp').style.display=this.value==='yes'?'':'none'"><option value="no"${c.followup!=='yes'?'selected':''}>לא</option><option value="yes"${c.followup==='yes'?'selected':''}>כן</option></select></div>
+            <div class="form-group full"><label class="form-label">פרטי השיחה</label><textarea class="form-input" id="eh-details" rows="3">${c.details||''}</textarea></div>
+            <div class="form-group" id="eh-fudate-grp" style="display:${c.followup==='yes'?'':'none'}"><label class="form-label">תאריך מעקב</label><input type="date" class="form-input" id="eh-followup_date" value="${c.followup_date||''}"/></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn btn-primary btn-sm" onclick="saveHistCallEdit('${c.id}')">שמור שינויים</button>
+            <button class="btn btn-secondary btn-sm" onclick="cancelHistCallEdit()">ביטול</button>
+          </div>
+        </div>`;
+        return;
+      }
       const dt=(c.datetime||'').substring(0,16).replace('T',' ');
       const dir=DIRECTION_MAP()[c.direction]||c.direction||'';
       const over=c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date);
@@ -1688,7 +1707,10 @@ function renderCallHistoryBody(expandNew){
             <span style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:6px">${dir}</span>
             <span style="font-size:11px;color:var(--text3)">👤 ${c.caller||'—'}</span>
           </div>
-          <button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button>
+          <div style="display:flex;gap:6px">
+            <button class="act-btn" onclick="startHistCallEdit('${c.id}')">✏️</button>
+            <button class="act-btn danger" onclick="deleteCallFromHistory('${c.id}')">🗑</button>
+          </div>
         </div>
         <div style="font-size:13px;line-height:1.5;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word">${c.details?c.details:'<span style="color:var(--text3)">אין פרטים</span>'}</div>
         ${c.followup==='yes'?(c.followup_done
@@ -1722,6 +1744,29 @@ function toggleNcFollowup(){
 }
 
 let _callbackForCallId=null;
+let editingHistCallId=null;
+function startHistCallEdit(callId){ editingHistCallId=callId; renderCallHistoryBody(false); }
+function cancelHistCallEdit(){ editingHistCallId=null; renderCallHistoryBody(false); }
+async function saveHistCallEdit(callId){
+  const getVal=id=>{const e=document.getElementById(id);return e?(e.value||'').trim():'';};
+  const followup=document.getElementById('eh-followup')?.value||'no';
+  const data={
+    datetime:getVal('eh-datetime'),
+    caller:getVal('eh-caller'),
+    direction:getVal('eh-direction')||'initiated',
+    details:getVal('eh-details'),
+    followup,
+    followup_date:followup==='yes'?getVal('eh-followup_date'):''
+  };
+  try{
+    const upd=await api('PUT','/api/calls/'+callId,data);
+    const i=calls.findIndex(c=>c.id===callId);
+    if(i!==-1) calls[i]={...calls[i],...upd};
+    editingHistCallId=null;
+    renderCallHistoryBody(false);
+    renderCalls(); renderDashboard(); renderStudents();
+  }catch(e){ showError('שגיאה בשמירה: '+e.message); }
+}
 function startCallback(callId){
   _callbackForCallId=callId;
   renderCallHistoryBody(true); // open the new-call section
