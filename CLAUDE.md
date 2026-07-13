@@ -88,6 +88,12 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- ID number (ת.ז): now optional; if entered must be exactly 9 digits (blocks save, red);
+  duplicate ID shows live orange warning naming the existing student but NEVER blocks save.
+  Duplicate check is client-side against the loaded `students` array (id_number is AES-encrypted
+  non-deterministically in DB, so no server-side equality query is possible).
+- Calls page: rows of deleted students ("תלמיד נמחק") now have a 🗑️ button that deletes all their
+  calls after a confirm (loops DELETE /api/calls/:id, audit-logged).
 - Session expiry fix: JWT 12h→24h; inactivity auto-logout skipped while any modal is open;
   clear Hebrew message shown on 401 (and login-endpoint 401s now show the real error, not "Session expired").
 - Login placeholder "admin" removed.

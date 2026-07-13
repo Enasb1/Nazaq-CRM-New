@@ -648,7 +648,7 @@ const DEFAULT_STUDENT_FIELDS = [
   {key:'phone1',     label:'טלפון 1',           type:'phone',    locked:true, required:true,  tableCol:true,  section:'personal'},
   {key:'phone2',     label:'טלפון 2',           type:'phone',    locked:false,required:false, tableCol:false, section:'personal'},
   {key:'email',      label:'אימייל',            type:'email',    locked:false,required:false,  tableCol:true,  section:'personal'},
-  {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:true,  tableCol:false, section:'personal'},
+  {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'birthdate',  label:'תאריך לידה',        type:'date',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'age',        label:'גיל',               type:'computed', locked:true, required:false, tableCol:false, section:'personal'},
   {key:'city',       label:'עיר',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
@@ -1393,6 +1393,10 @@ function inputHTML(f,s,semOpts){
   const raw=s[f.key];
   const val=(raw===undefined||raw===null)?'':raw;
   const id=`sf-${f.key}`;
+  if(f.key==='id_number'){
+    // 9-digit check (red, blocks save) + duplicate warning (orange, informational only)
+    return`<input class="form-input" type="text" id="${id}" value="${val}" maxlength="9" inputmode="numeric" oninput="checkIdLive(this)"/><div id="sf-id_number-warn" style="font-size:11px;margin-top:4px;line-height:1.4"></div>`;
+  }
   if(f.key==='age'||f.type==='computed'){
     // Read-only, auto-calculated from birthdate
     return`<input class="form-input" type="text" id="${id}" value="${val}" readonly style="background:var(--bg);color:var(--text2)" placeholder="מחושב מתאריך לידה"/>`;
@@ -1450,6 +1454,22 @@ function calcAgeFromBirthdate(bd){
 function recalcAge(s){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value||s.birthdate); }
 function recalcAgeLive(){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value); }
 
+function checkIdLive(el){
+  const warn=document.getElementById('sf-id_number-warn');
+  const v=el.value.trim();
+  el.style.borderColor=''; if(warn){warn.textContent='';}
+  if(!v) return;
+  if(!/^\d{9}$/.test(v)){
+    el.style.borderColor='var(--red)';
+    if(warn){warn.style.color='var(--red)'; warn.textContent='⚠️ מספר ת.ז חייב להכיל 9 ספרות בדיוק';}
+    return;
+  }
+  const dup=students.find(s=>s.id!==editingStudentId&&s.id_number===v);
+  if(dup){
+    el.style.borderColor='var(--orange)';
+    if(warn){warn.style.color='var(--orange)'; warn.textContent=`⚠️ שים לב: קיים כבר תלמיד עם ת.ז זו במערכת (${(dup.fname||'')+' '+(dup.lname||'')}). ניתן לשמור בכל זאת.`;}
+  }
+}
 async function saveStudent(){
   const REQUIRED_KEYS=studentFields.filter(f=>f.required).map(f=>f.key);
   const data={};
@@ -1474,6 +1494,11 @@ async function saveStudent(){
   [['email','אימייל'],['parent_email','אימייל הורה']].forEach(([k,label])=>{
     if(data[k]&&!isValidEmail(data[k])){ fmtErrors.push(`${label} אינו בפורמט תקין`); const el=document.getElementById(`sf-${k}`); if(el)el.style.borderColor='var(--red)'; }
   });
+  // ID number: optional, but if given must be exactly 9 digits (duplicates only warn, never block)
+  if(data.id_number&&!/^\d{9}$/.test(data.id_number)){
+    fmtErrors.push('מספר ת.ז חייב להכיל 9 ספרות בדיוק');
+    const el=document.getElementById('sf-id_number'); if(el)el.style.borderColor='var(--red)';
+  }
   if(fmtErrors.length){
     let errEl=document.getElementById('sf-error');
     if(!errEl){errEl=document.createElement('div');errEl.id='sf-error';errEl.style.cssText='grid-column:1/-1;color:var(--red);font-size:12px;background:var(--red-bg);padding:8px 12px;border-radius:8px;';document.getElementById('student-form').appendChild(errEl);}
@@ -1552,20 +1577,32 @@ function renderCalls(){
   const tbody=document.getElementById('calls-tbody');
   if(!rows.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="icon">📞</div><div>${t('no_calls')}</div></div></td></tr>`;return;}
   tbody.innerHTML=rows.map(r=>{
+    const isOrphan=!r.studentId||!students.find(s=>s.id===r.studentId);
     const dt=(r.latest.datetime||'').substring(0,16).replace('T',' ');
     const anyFu=r.list.some(c=>c.followup==='yes'&&!c.followup_done);
     const fuCall=r.list.find(c=>c.followup==='yes'&&!c.followup_done&&c.followup_date);
     const fu=anyFu?`<span style="color:var(--orange);font-weight:700">✓ ${fuCall?formatDate(fuCall.followup_date):''}</span>`:'—';
     const editTarget=r.studentId?`openStudentCallHistory('${r.studentId}')`:`openEditCall('${r.latest.id}')`;
     return`<tr style="cursor:pointer" onclick="${editTarget}">
-      <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span>${!r.studentId||!students.find(s=>s.id===r.studentId)?' <span style="color:var(--red);font-size:11px">(תלמיד נמחק)</span>':''}</td>
+      <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span>${isOrphan?' <span style="color:var(--red);font-size:11px">(תלמיד נמחק)</span>':''}</td>
       <td style="font-size:12px">${dt||'—'}</td>
       <td dir="ltr" style="text-align:right">${r.phone||'—'}</td>
       <td>${fu}</td>
       <td><div class="actions" onclick="event.stopPropagation()">
         <button class="act-btn" onclick="${editTarget}">✏️ <span style="font-size:11px">${t('edit')}</span></button>
+        ${isOrphan?`<button class="act-btn" style="color:var(--red)" onclick="deleteOrphanCalls('${r.list.map(c=>c.id).join(',')}')">🗑️ <span style="font-size:11px">מחק</span></button>`:''}
       </div></td></tr>`;
   }).join('');
+}
+
+async function deleteOrphanCalls(idsCsv){
+  const ids=idsCsv.split(',').filter(Boolean);
+  if(!confirm(`למחוק ${ids.length===1?'שיחה אחת':ids.length+' שיחות'} של תלמיד שנמחק? פעולה זו אינה ניתנת לביטול.`))return;
+  try{
+    for(const id of ids){ await api('DELETE','/api/calls/'+id); }
+    calls=calls.filter(c=>!ids.includes(c.id));
+    renderCalls(); renderDashboard(); updateBadge();
+  }catch(e){ showError('שגיאה במחיקת השיחות: '+e.message); }
 }
 
 function openAddCall(studentId){
