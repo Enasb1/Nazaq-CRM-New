@@ -93,7 +93,14 @@ app.get('/health', (req, res) => {
 
 // ── SERVE FRONTEND ────────────────────────────────────
 const path = require('path');
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders: (res, filePath) => {
+    // HTML must always be revalidated so users get new versions right after deploy
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 
 // Public lead form (clean URL)
 app.get('/welcome', (req, res) => {
