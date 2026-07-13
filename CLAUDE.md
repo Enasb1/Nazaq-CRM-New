@@ -85,7 +85,7 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 2. **Go-live checklist** (owner deferred): set strong passwords (regenerate fresh hashes when needed),
    rotate Supabase service key + GitHub token, optionally rotate JWT_SECRET (NEVER ENCRYPTION_KEY),
    decide if payments API should be admin-only (currently agents can reach it via API).
-3. **Blue doctor status** — meaning undefined, ask owner.
+3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
 - Session expiry fix: JWT 12h→24h; inactivity auto-logout skipped while any modal is open;
