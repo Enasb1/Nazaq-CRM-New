@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const supabase = require('../config/supabase');
+const { logWelcome } = require('../utils/welcomeStats');
 
 const router = express.Router();
 
@@ -12,6 +13,10 @@ const leadLimiter = rateLimit({
   message: { error: 'יותר מדי בקשות, נסה שוב מאוחר יותר' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    logWelcome('blocked', 'rate_limit');
+    res.status(429).json(options.message);
+  },
 });
 
 // Israeli phone validation: mobile 05X, landline 02/03/04/08/09, VoIP 072-079; accepts +972 prefix
@@ -35,15 +40,22 @@ router.post('/lead',
   body('lname').optional().trim().isLength({ max: 100 }),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ error: 'נא למלא את השדות הנדרשים' });
+    if (!errors.isEmpty()) {
+      logWelcome('invalid', 'validation');
+      return res.status(400).json({ error: 'נא למלא את השדות הנדרשים' });
+    }
 
     // Israeli phone number required
     if (!isValidIsraeliPhone(req.body.phone1)) {
+      logWelcome('invalid', 'phone');
       return res.status(400).json({ error: 'رقم الهاتف غير صحيح — يرجى إدخال رقم إسرائيلي صالح' });
     }
 
     // Honeypot: bots fill the hidden "website" field; humans don't
-    if (req.body.website) return res.status(201).json({ success: true });
+    if (req.body.website) {
+      logWelcome('blocked', 'honeypot');
+      return res.status(201).json({ success: true });
+    }
 
     try {
       const student = {
@@ -64,6 +76,7 @@ router.post('/lead',
         return res.status(500).json({ error: 'שגיאה בשמירה' });
       }
       console.log(`[PUBLIC LEAD] Created lead ${data.id}`);
+      logWelcome('success');
       res.status(201).json({ success: true });
     } catch (err) {
       console.error('[PUBLIC LEAD] error:', err.message);

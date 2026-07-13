@@ -121,4 +121,25 @@ auditRouter.get('/', async (req, res) => {
   res.json({ data: data || [], total: count });
 });
 
-module.exports = { semRouter, userRouter, configRouter, auditRouter };
+// ── WELCOME FORM STATS (admin only) ────────────────────
+const welcomeStatsRouter = express.Router();
+welcomeStatsRouter.use(requireAuth, requireAdmin);
+
+welcomeStatsRouter.get('/', async (req, res) => {
+  const { data, error } = await supabase.from('welcome_stats').select('event, created_at');
+  if (error) {
+    console.error('[WELCOME STATS] read error:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const empty = () => ({ visit: 0, success: 0, invalid: 0, blocked: 0 });
+  const agg = { total: empty(), week: empty() };
+  (data || []).forEach((r) => {
+    if (agg.total[r.event] === undefined) return;
+    agg.total[r.event]++;
+    if (new Date(r.created_at).getTime() >= weekAgo) agg.week[r.event]++;
+  });
+  res.json(agg);
+});
+
+module.exports = { semRouter, userRouter, configRouter, auditRouter, welcomeStatsRouter };

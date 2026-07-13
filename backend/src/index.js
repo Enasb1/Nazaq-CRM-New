@@ -9,7 +9,7 @@ const studentRoutes = require('./routes/students');
 const callRoutes = require('./routes/calls');
 const doctorRoutes = require('./routes/doctors');
 const publicRoutes = require('./routes/public');
-const { semRouter, userRouter, configRouter, auditRouter } = require('./routes/other');
+const { semRouter, userRouter, configRouter, auditRouter, welcomeStatsRouter } = require('./routes/other');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -84,6 +84,7 @@ app.use('/api/semesters', semRouter);
 app.use('/api/users', userRouter);
 app.use('/api/config', configRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/welcome-stats', welcomeStatsRouter);
 
 // ── HEALTH CHECK ─────────────────────────────────────
 app.get('/health', (req, res) => {
@@ -96,6 +97,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Public lead form (clean URL)
 app.get('/welcome', (req, res) => {
+  require('./utils/welcomeStats').logWelcome('visit');
   res.sendFile(path.join(__dirname, '..', 'public', 'welcome.html'));
 });
 // Old URL redirects to the new one

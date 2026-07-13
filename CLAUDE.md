@@ -70,20 +70,32 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
   (allows inline scripts + cdn.jsdelivr.net — needed, do not remove).
 
 ## OPEN ITEMS (next conversation should start here)
-1. **Session expiry loses form data** — diagnosed, NOT fixed: `JWT_EXPIRES_IN='12h'` hardcoded in
-   backend/src/middleware/auth.js; `api()` in index.html calls doLogout() immediately on 401 (wipes form).
-   Plan: extend JWT to 24h, skip inactivity-logout while a modal is open, show clear message on 401.
-2. **Login page grey "admin" text** — NOT fixed: index.html line ~261 `<input id="login-user" placeholder="admin">`.
-   Remove/replace the placeholder.
-3. **Dashboard "תזכורת מעקב" shows completed callbacks as באיחור** — NOT fixed: renderDashboard's followup list
-   filters `c.followup==='yes'&&c.followup_date` without excluding `c.followup_done`. Add `&&!c.followup_done`.
-4. **Analytics for /welcome** — NOT built: owner wants visit count, failed/invalid submissions, successes.
-   Plan: `welcome_stats` table (SQL for owner), track GET /welcome + POST outcomes in public.js,
-   admin-visible stats card on dashboard.
-5. **Go-live checklist** (owner deferred): set strong passwords (hashes were generated in a past chat — regenerate
-   fresh ones when needed), rotate Supabase service key + GitHub token, optionally rotate JWT_SECRET
-   (NEVER ENCRYPTION_KEY), decide if payments API should be admin-only (currently agents can reach it via API).
-6. **Blue doctor status** — meaning undefined, ask owner.
+1. **Run welcome_stats SQL** — analytics code is deployed but the table must be created by the owner
+   (SQL was provided in chat; also below). Until then, event logging fails silently and the dashboard
+   card shows "לא ניתן לטעון נתונים". SQL:
+   ```sql
+   CREATE TABLE welcome_stats (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     event TEXT NOT NULL CHECK (event IN ('visit','success','invalid','blocked')),
+     detail TEXT,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   ALTER TABLE welcome_stats ENABLE ROW LEVEL SECURITY;
+   ```
+2. **Go-live checklist** (owner deferred): set strong passwords (regenerate fresh hashes when needed),
+   rotate Supabase service key + GitHub token, optionally rotate JWT_SECRET (NEVER ENCRYPTION_KEY),
+   decide if payments API should be admin-only (currently agents can reach it via API).
+3. **Blue doctor status** — meaning undefined, ask owner.
+
+## DONE (July 2026 session)
+- Session expiry fix: JWT 12h→24h; inactivity auto-logout skipped while any modal is open;
+  clear Hebrew message shown on 401 (and login-endpoint 401s now show the real error, not "Session expired").
+- Login placeholder "admin" removed.
+- Follow-up displays exclude completed callbacks (`!c.followup_done`) in: dashboard reminder list,
+  pendingCount badge, student-detail call history, calls history popup.
+- /welcome analytics: `welcome_stats` event log (visit/success/invalid/blocked incl. honeypot + rate-limit),
+  fire-and-forget logger `src/utils/welcomeStats.js`, admin-only GET /api/welcome-stats (aggregates total + 7-day),
+  admin-only dashboard card. Mock DB updated with the table.
 
 ## WhatsApp context (no code involved)
 Owner uses WhatsApp Business app on iPhone. Greeting message only fires on first contact / after 14 days;

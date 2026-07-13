@@ -258,7 +258,7 @@ tr:hover td{background:var(--yellow-pale);}
     <div class="login-logo">Nz.</div>
     <div class="login-title">NazAQ CRM</div>
     <div class="login-sub">مركز الناصرة للتأهيل</div>
-    <div class="login-field"><label id="lbl-user">שם משתמש</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
+    <div class="login-field"><label id="lbl-user">שם משתמש</label><input type="text" id="login-user" autocomplete="username"/></div>
     <div class="login-field"><label id="lbl-pass">סיסמה</label>
       <div style="position:relative">
         <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" dir="ltr" style="text-align:left;padding-left:42px"/>
@@ -314,6 +314,10 @@ tr:hover td{background:var(--yellow-pale);}
           <div class="section-title" style="margin-bottom:12px" data-t="pending_followup_reminders">תזכורות מעקב</div>
           <div id="followup-list"></div>
         </div>
+      </div>
+      <div id="welcome-stats-card" class="table-wrapper" style="padding:20px;margin-top:20px;display:none">
+        <div class="stat-label" style="margin-bottom:14px">📊 סטטיסטיקת טופס וואטסאפ (/welcome)</div>
+        <div id="welcome-stats" style="font-size:13px;color:var(--text3)">⏳ טוען...</div>
       </div>
     </div>
 
@@ -689,7 +693,11 @@ async function api(method, path, body){
   };
   if(body) opts.body = JSON.stringify(body);
   const r = await fetch(API_BASE + path, opts);
-  if(r.status === 401){ doLogout(); throw new Error('Session expired'); }
+  if(r.status === 401 && !path.includes('/api/auth/login')){
+    doLogout();
+    document.getElementById('login-error').textContent='⏳ פג תוקף ההתחברות — יש להתחבר מחדש. הטופס שהיה פתוח נשמר.';
+    throw new Error('Session expired');
+  }
   if(!r.ok){ const e=await r.json().catch(()=>({error:'Server error'})); throw new Error(e.error||'Server error'); }
   return r.json();
 }
@@ -725,7 +733,7 @@ function timeSlots(){
 function ilPhoneFeedback(el){ const v=el.value.trim(); el.style.borderColor=!v?'':(isValidIL(v)?'var(--green)':'var(--red)'); }
 function emailFieldFeedback(el){ const v=el.value.trim(); el.style.borderColor=!v?'':(isValidEmail(v)?'var(--green)':'var(--red)'); }
 function isOverdue(d){if(!d)return false;return new Date(d)<new Date();}
-function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date)).length;}
+function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_date&&!c.followup_done&&isOverdue(c.followup_date)).length;}
 
 // ══════════════════════════════════════════
 // STORAGE — now hits real API
@@ -868,6 +876,8 @@ let lastActivityTs=Date.now();
   document.addEventListener(ev,()=>{lastActivityTs=Date.now();},{passive:true})
 );
 function checkInactivity(){
+  // Don't auto-logout while the user has a modal open (may be mid-typing a form)
+  if(document.querySelector('.modal-overlay.open')){ lastActivityTs=Date.now(); return; }
   if(authToken && Date.now()-lastActivityTs>INACTIVITY_LIMIT_MS){
     doLogout();
     document.getElementById('login-error').textContent='⏳ נותקת עקב חוסר פעילות';
@@ -933,7 +943,26 @@ function updateBadge(){
 // ══════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════
+async function loadWelcomeStats(){
+  const card=document.getElementById('welcome-stats-card');
+  if(!currentUser||currentUser.role!=='admin'){card.style.display='none';return;}
+  card.style.display='';
+  try{
+    const s=await api('GET','/api/welcome-stats');
+    const row=(icon,label,total,week,color)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-weight:600;font-size:13px">${icon} ${label}</div>
+      <div style="font-size:13px"><span style="font-weight:700;color:${color}">${total}</span> <span style="color:var(--text3);font-size:12px">(${week} ב-7 ימים)</span></div></div>`;
+    document.getElementById('welcome-stats').innerHTML=
+      row('👁️','כניסות לדף',s.total.visit,s.week.visit,'var(--text)')+
+      row('✅','לידים שנוצרו',s.total.success,s.week.success,'var(--green,#2E7D52)')+
+      row('⚠️','נסיונות לא תקינים',s.total.invalid,s.week.invalid,'var(--orange,#D4670A)')+
+      row('🚫','נחסמו (בוטים/הצפה)',s.total.blocked,s.week.blocked,'var(--red,#C0392B)');
+  }catch(e){
+    document.getElementById('welcome-stats').textContent='לא ניתן לטעון נתונים';
+  }
+}
 function renderDashboard(){
+  loadWelcomeStats();
   document.getElementById('stat-total').textContent=students.length;
   document.getElementById('stat-registered').textContent=students.filter(s=>s.status==='registered').length;
   document.getElementById('stat-callback').textContent=students.filter(s=>s.status==='callback').length;
@@ -949,7 +978,7 @@ function renderDashboard(){
     return`<div class="progress-row"><div class="progress-label">${STATUS_LABELS()[s]}</div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[s]}"></div></div><div class="progress-count">${count}</div></div>`;
   }).join('');
   // Follow-up reminders
-  const fu=calls.filter(c=>c.followup==='yes'&&c.followup_date).sort((a,b)=>new Date(a.followup_date)-new Date(b.followup_date)).slice(0,10);
+  const fu=calls.filter(c=>c.followup==='yes'&&c.followup_date&&!c.followup_done).sort((a,b)=>new Date(a.followup_date)-new Date(b.followup_date)).slice(0,10);
   const fl=document.getElementById('followup-list');
   if(!fu.length){fl.innerHTML=`<div class="empty-state"><div>✅</div><div>${t('no_calls')}</div></div>`;return;}
   fl.innerHTML=fu.map(c=>{
@@ -1164,7 +1193,7 @@ function openDetail(id){
   if(!studentCalls.length){html+=`<div style="font-size:13px;color:var(--text3)">${t('no_calls')}</div>`;}
   else{
     studentCalls.forEach(c=>{
-      const over=c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date);
+      const over=c.followup==='yes'&&c.followup_date&&!c.followup_done&&isOverdue(c.followup_date);
       html+=`<div class="call-entry${over?' overdue':''}">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <strong style="font-size:12px">${(c.datetime||'').substring(0,16)}</strong>
@@ -1699,7 +1728,7 @@ function renderCallHistoryBody(expandNew){
       }
       const dt=(c.datetime||'').substring(0,16).replace('T',' ');
       const dir=DIRECTION_MAP()[c.direction]||c.direction||'';
-      const over=c.followup==='yes'&&c.followup_date&&isOverdue(c.followup_date);
+      const over=c.followup==='yes'&&c.followup_date&&!c.followup_done&&isOverdue(c.followup_date);
       html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
