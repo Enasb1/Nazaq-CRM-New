@@ -88,6 +88,11 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Mobile/iPhone support: full @media(max-width:640px) block at END of <style> (must stay last to win
+  specificity). Slim topbar, sticky scrollable nav, 2-col stat grid, stacked .resp-2col sections,
+  tables scroll sideways inside .table-wrapper (min-width:640px), full-screen modals with sticky footer,
+  16px inputs (prevents iOS focus zoom), bigger touch targets. Verified 0px horizontal overflow on iPhone 13 viewport.
+- Cache-Control no-cache on HTML so deploys reach browsers immediately (was: stale UI after deploys).
 - ID number (ת.ז): now optional; if entered must be exactly 9 digits (blocks save, red);
   duplicate ID shows live orange warning naming the existing student but NEVER blocks save.
   Duplicate check is client-side against the loaded `students` array (id_number is AES-encrypted
