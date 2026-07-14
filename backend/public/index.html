@@ -993,7 +993,9 @@ async function loadWelcomeStats(){
       <div style="font-weight:600;font-size:13px">${icon} ${label}</div>
       <div style="font-size:13px"><span style="font-weight:700;color:${color}">${total}</span> <span style="color:var(--text3);font-size:12px">(${week} ב-7 ימים)</span></div></div>`;
     document.getElementById('welcome-stats').innerHTML=
-      row('👁️','כניסות לדף',s.total.visit,s.week.visit,'var(--text)')+
+      row('👤','כניסות של אנשים',s.total.visit_human,s.week.visit_human,'var(--text)')+
+      row('🤖','בוטים ותצוגות קישור',s.total.visit_bot,s.week.visit_bot,'var(--text3)')+
+      (s.total.visit_unknown?row('❔','כניסות ישנות (לפני זיהוי בוטים)',s.total.visit_unknown,s.week.visit_unknown,'var(--text3)'):'')+
       row('✅','לידים שנוצרו',s.total.success,s.week.success,'var(--green,#2E7D52)')+
       row('⚠️','נסיונות לא תקינים',s.total.invalid,s.week.invalid,'var(--orange,#D4670A)')+
       row('🚫','נחסמו (בוטים/הצפה)',s.total.blocked,s.week.blocked,'var(--red,#C0392B)');

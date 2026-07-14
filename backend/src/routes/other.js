@@ -132,12 +132,22 @@ welcomeStatsRouter.get('/', async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const empty = () => ({ visit: 0, success: 0, invalid: 0, blocked: 0 });
+  // Known non-human visitors: link-preview fetchers, crawlers, scripts, monitors
+  const BOT_RE = /bot|crawl|spider|preview|whatsapp|facebookexternalhit|telegram|twitterbot|slack|discord|linkedin|curl|wget|python|go-http|axios|okhttp|headless|monitor|pingdom|uptime|scan|lighthouse|^none$/i;
+  const empty = () => ({ visit: 0, visit_human: 0, visit_bot: 0, visit_unknown: 0, success: 0, invalid: 0, blocked: 0 });
   const agg = { total: empty(), week: empty() };
+  const bump = (b, r) => {
+    if (b[r.event] === undefined) return;
+    b[r.event]++;
+    if (r.event === 'visit') {
+      if (!r.detail) b.visit_unknown++;            // rows from before UA logging existed
+      else if (BOT_RE.test(r.detail)) b.visit_bot++;
+      else b.visit_human++;
+    }
+  };
   (data || []).forEach((r) => {
-    if (agg.total[r.event] === undefined) return;
-    agg.total[r.event]++;
-    if (new Date(r.created_at).getTime() >= weekAgo) agg.week[r.event]++;
+    bump(agg.total, r);
+    if (new Date(r.created_at).getTime() >= weekAgo) bump(agg.week, r);
   });
   res.json(agg);
 });

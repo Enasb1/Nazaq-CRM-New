@@ -104,7 +104,8 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 
 // Public lead form (clean URL)
 app.get('/welcome', (req, res) => {
-  require('./utils/welcomeStats').logWelcome('visit');
+  // Record the user-agent so bots (link previews, crawlers) can be told apart from humans
+  require('./utils/welcomeStats').logWelcome('visit', String(req.get('user-agent') || 'none').slice(0, 250));
   res.sendFile(path.join(__dirname, '..', 'public', 'welcome.html'));
 });
 // Old URL redirects to the new one
