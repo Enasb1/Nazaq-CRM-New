@@ -70,6 +70,22 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
   (allows inline scripts + cdn.jsdelivr.net — needed, do not remove).
 
 ## OPEN ITEMS (next conversation should start here)
+0. **Run meetings SQL** — meetings feature deployed; owner must create the table (SQL below).
+   Until then: calendar still works from legacy students.appointment_at; creating meetings/summaries
+   shows an error. SQL:
+   ```sql
+   CREATE TABLE meetings (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     student_id UUID,
+     meeting_at TEXT NOT NULL,
+     summary TEXT,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   ALTER TABLE meetings ENABLE ROW LEVEL SECURITY;
+   INSERT INTO meetings (student_id, meeting_at)
+   SELECT id, appointment_at::text FROM students
+   WHERE appointment_at IS NOT NULL AND appointment_at::text <> '';
+   ```
 1. **Run welcome_stats SQL** — analytics code is deployed but the table must be created by the owner
    (SQL was provided in chat; also below). Until then, event logging fails silently and the dashboard
    card shows "לא ניתן לטעון נתונים". SQL:
@@ -88,6 +104,11 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Meetings system: meetings table (many per student, each with summary), CRUD /api/meetings (auth,
+  audit-logged). Detail popup: 🗓️ פגישות section — add meeting (date+time), עתידית/התקיימה badge,
+  inline summary editor (📝), delete; legacy students.appointment_at shown as items and converted to
+  real records when a summary is added. Calendar (renderMeetings) reads records+legacy via
+  allMeetingItems(); chips show 📝 when summary exists. Student-form meeting date auto-creates a record.
 - Student-detail popup call history redesigned to match the rich call-modal cards: date, direction badge,
   labeled caller name, details in padded box, followup done/pending state, comments; plus a
   'ניהול / עריכת שיחות' button jumping to the full call-management modal (manageCallsFromDetail).

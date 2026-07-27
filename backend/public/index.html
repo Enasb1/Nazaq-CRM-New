@@ -756,6 +756,8 @@ let students=[], calls=[], semesters=[];
 let studentFields=[], callFields=[];
 let editingStudentId=null, editingCallId=null, editingSemesterId=null;
 let detailStudentId=null;
+let meetings=[];
+let _editMeetingSummaryId=null;
 let currentUser=null;
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2);}
@@ -788,15 +790,17 @@ function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_da
 async function loadData(){
   try{
     showLoadingOverlay(true);
-    const [sData, stData, cData, cfg] = await Promise.all([
+    const [sData, stData, cData, cfg, mData] = await Promise.all([
       api('GET','/api/semesters'),
       api('GET','/api/students?limit=500'),
       api('GET','/api/calls?limit=500'),
-      api('GET','/api/config').catch(()=>({}))
+      api('GET','/api/config').catch(()=>({})),
+      api('GET','/api/meetings?limit=500').catch(()=>({data:[]}))
     ]);
     semesters   = sData || [];
     students    = stData.data || stData || [];
     calls       = cData.data  || cData  || [];
+    meetings    = mData.data  || [];
     // Field config
     if(cfg && cfg.studentFields) studentFields = cfg.studentFields;
     else studentFields = JSON.parse(JSON.stringify(DEFAULT_STUDENT_FIELDS));
@@ -1184,6 +1188,28 @@ function upcomingSemesterOrder(){
 // ══════════════════════════════════════════
 // STUDENT DETAIL POPUP (shows ALL fields)
 // ══════════════════════════════════════════
+
+// Meetings for a student: real records + legacy students.appointment_at not yet migrated to a record
+function meetingItemsFor(studentId){
+  const items=meetings.filter(m=>m.student_id===studentId)
+    .map(m=>({id:m.id,student_id:m.student_id,at:String(m.meeting_at||''),summary:m.summary||'',legacy:false}));
+  const s=students.find(x=>x.id===studentId);
+  if(s&&s.appointment_at){
+    const at=String(s.appointment_at).substring(0,16);
+    if(!items.some(i=>i.at.substring(0,16)===at)) items.push({id:null,student_id:studentId,at,summary:'',legacy:true});
+  }
+  return items.sort((a,b)=>new Date(b.at)-new Date(a.at));
+}
+function allMeetingItems(){
+  const out=[...meetings.map(m=>({id:m.id,student_id:m.student_id,at:String(m.meeting_at||''),summary:m.summary||'',legacy:false}))];
+  students.forEach(s=>{
+    if(s.appointment_at){
+      const at=String(s.appointment_at).substring(0,16);
+      if(!out.some(i=>i.student_id===s.id&&i.at.substring(0,16)===at)) out.push({id:null,student_id:s.id,at,summary:'',legacy:true});
+    }
+  });
+  return out;
+}
 function openDetail(id){
   const s=students.find(x=>x.id===id);
   if(!s)return;
@@ -1238,6 +1264,50 @@ function openDetail(id){
 
   // Call history
   const studentCalls=calls.filter(c=>c.student_id===id).sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+  // ── Meetings section ──
+  const mItems=meetingItemsFor(id);
+  html+=`<div style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+      <div class="section-title" style="font-size:14px;margin:0">🗓️ פגישות (${mItems.length})</div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleAddMeeting()" style="font-size:11px;padding:4px 10px">＋ קבע פגישה</button>
+    </div>
+    <div id="add-meeting-row" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <input type="date" class="form-input" id="dm-date" style="width:auto;flex:1;min-width:130px"/>
+      <select class="form-select" id="dm-time" style="width:auto;flex:0 0 100px">${timeSlots().map(x=>`<option value="${x}"${x==='10:00'?' selected':''}>${x}</option>`).join('')}</select>
+      <button class="btn btn-primary btn-sm" onclick="addMeetingFromDetail()">שמור</button>
+    </div>`;
+  if(!mItems.length){ html+=`<div style="font-size:13px;color:var(--text3)">לא נקבעה פגישה</div>`; }
+  else{
+    html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
+    mItems.forEach(m=>{
+      const dt=m.at.substring(0,16).replace('T',' ');
+      const isPast=new Date(m.at)<new Date();
+      const key=m.id||('legacy:'+m.at.substring(0,16));
+      const editing=_editMeetingSummaryId===key;
+      html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <strong style="font-size:13px">🗓️ ${dt}</strong>
+          <span style="font-size:11px;padding:2px 8px;border-radius:6px;background:${isPast?'var(--surface2)':'var(--yellow-pale)'};font-weight:600">${isPast?'התקיימה':'עתידית'}</span>
+          <div style="margin-inline-start:auto;display:flex;gap:6px">
+            <button class="act-btn" onclick="startMeetingSummary('${key}')" title="סיכום פגישה">📝</button>
+            ${m.id?`<button class="act-btn danger" onclick="deleteMeetingFromDetail('${m.id}')" title="מחק פגישה">🗑</button>`:''}
+          </div>
+        </div>
+        ${editing
+          ?`<textarea class="form-input" id="dm-summary" rows="3" placeholder="מה קרה בפגישה?">${m.summary||''}</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn btn-primary btn-sm" onclick="saveMeetingSummary('${key}')">שמור סיכום</button>
+              <button class="btn btn-secondary btn-sm" onclick="_editMeetingSummaryId=null;openDetail(detailStudentId)">ביטול</button>
+            </div>`
+          :(m.summary
+            ?`<div style="font-size:13px;line-height:1.5;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word">${m.summary}</div>`
+            :`<div style="font-size:12px;color:var(--text3)">${isPast?'אין סיכום עדיין — לחץ 📝 להוספה':'טרם התקיימה'}</div>`)}
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+
   html+=`<div style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
       <div class="section-title" style="font-size:14px;margin:0">📞 היסטוריית שיחות (${studentCalls.length})</div>
@@ -1268,6 +1338,43 @@ function openDetail(id){
   html+='</div>';
   document.getElementById('detail-body').innerHTML=html;
   document.getElementById('modal-detail').classList.add('open');
+}
+function toggleAddMeeting(){const r=document.getElementById('add-meeting-row');r.style.display=r.style.display==='none'?'flex':'none';}
+async function addMeetingFromDetail(){
+  const d=document.getElementById('dm-date').value;
+  if(!d){alert('בחר תאריך לפגישה');return;}
+  const at=`${d}T${document.getElementById('dm-time').value||'10:00'}`;
+  try{
+    const m=await api('POST','/api/meetings',{student_id:detailStudentId,meeting_at:at});
+    meetings.unshift(m);
+    openDetail(detailStudentId); renderMeetings();
+  }catch(e){ showError('שגיאה בקביעת פגישה: '+e.message); }
+}
+function startMeetingSummary(key){_editMeetingSummaryId=key;openDetail(detailStudentId);
+  setTimeout(()=>{const t=document.getElementById('dm-summary');if(t)t.focus();},50);}
+async function saveMeetingSummary(key){
+  const txt=(document.getElementById('dm-summary')?.value||'').trim();
+  try{
+    if(String(key).startsWith('legacy:')){
+      // Old-style meeting (stored on the student) — convert it to a real record with the summary
+      const at=String(key).substring(7);
+      const m=await api('POST','/api/meetings',{student_id:detailStudentId,meeting_at:at,summary:txt});
+      meetings.unshift(m);
+    } else {
+      const m=await api('PUT','/api/meetings/'+key,{summary:txt});
+      const idx=meetings.findIndex(x=>x.id===key); if(idx!==-1)meetings[idx]=m;
+    }
+    _editMeetingSummaryId=null;
+    openDetail(detailStudentId);
+  }catch(e){ showError('שגיאה בשמירת הסיכום: '+e.message); }
+}
+async function deleteMeetingFromDetail(id){
+  if(!confirm('למחוק את הפגישה? פעולה זו אינה ניתנת לביטול.'))return;
+  try{
+    await api('DELETE','/api/meetings/'+id);
+    meetings=meetings.filter(m=>m.id!==id);
+    openDetail(detailStudentId); renderMeetings();
+  }catch(e){ showError('שגיאה במחיקה: '+e.message); }
 }
 function editFromDetail(){closeModal('modal-detail');if(detailStudentId)openEditStudent(detailStudentId);}
 function manageCallsFromDetail(){const id=detailStudentId;closeModal('modal-detail');if(id)openStudentCallHistory(id,false);}
@@ -1364,7 +1471,10 @@ function renderMeetings(){
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const todayIso=iso(new Date());
   const weekIsos=days.map(iso);
-  const appts=students.filter(s=>s.appointment_at);
+  const appts=allMeetingItems().map(m=>{
+    const st=students.find(x=>x.id===m.student_id);
+    return {...m, appointment_at:m.at, fname:st?st.fname:'', lname:st?st.lname:'(תלמיד נמחק)', id:m.student_id, hasSummary:!!m.summary};
+  });
   const weekAppts=appts.filter(s=>weekIsos.includes(String(s.appointment_at).substring(0,10)));
   const fmt=d=>`${d.getDate()}/${d.getMonth()+1}`;
 
@@ -1382,7 +1492,7 @@ function renderMeetings(){
 
   const chip=s=>{
     const t=String(s.appointment_at).substring(11,16);
-    return`<div onclick="openDetail('${s.id}')" style="background:var(--yellow);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;margin:2px 0;line-height:1.3;overflow:hidden" title="${s.fname||''} ${s.lname||''} · ${t}">${t} ${s.fname||''} ${(s.lname||'').charAt(0)}${s.lname?'.':''}</div>`;
+    return`<div onclick="openDetail('${s.id}')" style="background:var(--yellow);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;margin:2px 0;line-height:1.3;overflow:hidden" title="${s.fname||''} ${s.lname||''} · ${t}${s.hasSummary?' · יש סיכום':''}">${t} ${s.fname||''} ${(s.lname||'').charAt(0)}${s.lname?'.':''}${s.hasSummary?' 📝':''}</div>`;
   };
 
   html+=`<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:52px repeat(7,minmax(110px,1fr));border:1px solid var(--border);border-radius:14px;overflow:hidden;min-width:840px;background:var(--surface)">`;
@@ -1602,6 +1712,13 @@ async function saveStudent(){
       students.unshift(saved);
     }
     closeModal('modal-student'); renderStudents(); renderDashboard();
+    // A meeting date on the form becomes a real meeting record (supports several per student)
+    if(data.appointment_at&&saved&&saved.id){
+      const at=String(data.appointment_at).substring(0,16);
+      if(!meetings.some(m=>m.student_id===saved.id&&String(m.meeting_at||'').substring(0,16)===at)){
+        try{ const m=await api('POST','/api/meetings',{student_id:saved.id,meeting_at:at}); meetings.unshift(m); renderMeetings(); }catch(e){}
+      }
+    }
     // Status "contacted" on a brand-new student means a call already happened — document it now
     if(wasNew&&data.status==='contacted'&&saved&&saved.id){
       openStudentCallHistory(saved.id, true);

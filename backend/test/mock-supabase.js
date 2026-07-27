@@ -1,4 +1,4 @@
-const tables = { students: [], calls: [], semesters: [], users: [], config: [], audit_log: [], doctor_courses: [], doctors: [], doctor_payments: [], welcome_stats: [] };
+const tables = { students: [], calls: [], semesters: [], users: [], config: [], audit_log: [], doctor_courses: [], doctors: [], doctor_payments: [], welcome_stats: [], meetings: [] };
 const bcrypt = require('bcryptjs');
 tables.users.push({ id: 'user-1', username: 'admin', fname: 'Admin', lname: 'Test', role: 'admin', password_hash: bcrypt.hashSync('test1234', 12), active: true });
 function makeQuery(table) {

@@ -85,6 +85,7 @@ app.use('/api/users', userRouter);
 app.use('/api/config', configRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/welcome-stats', welcomeStatsRouter);
+app.use('/api/meetings', require('./routes/meetings'));
 
 // ── HEALTH CHECK ─────────────────────────────────────
 app.get('/health', (req, res) => {
