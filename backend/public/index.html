@@ -697,7 +697,7 @@ const DEFAULT_STUDENT_FIELDS = [
   {key:'email',      label:'אימייל',            type:'email',    locked:false,required:false,  tableCol:true,  section:'personal'},
   {key:'id_number',  label:'מספר ת.ז.',         type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'birthdate',  label:'תאריך לידה',        type:'date',     locked:false,required:false, tableCol:false, section:'personal'},
-  {key:'age',        label:'גיל',               type:'computed', locked:true, required:false, tableCol:false, section:'personal'},
+  {key:'age',        label:'גיל',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'city',       label:'עיר',               type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'address',    label:'כתובת',             type:'text',     locked:false,required:false, tableCol:false, section:'personal'},
   {key:'status',     label:'סטטוס',             type:'select',   locked:true, required:false, tableCol:true,  section:'status', options:['new','contacted','callback','notinterested','registered','invited']},
@@ -1446,9 +1446,12 @@ function inputHTML(f,s,semOpts){
     // 9-digit check (red, blocks save) + duplicate warning (orange, informational only)
     return`<input class="form-input" type="text" id="${id}" value="${val}" maxlength="9" inputmode="numeric" oninput="checkIdLive(this)"/><div id="sf-id_number-warn" style="font-size:11px;margin-top:4px;line-height:1.4"></div>`;
   }
-  if(f.key==='age'||f.type==='computed'){
-    // Read-only, auto-calculated from birthdate
-    return`<input class="form-input" type="text" id="${id}" value="${val}" readonly style="background:var(--bg);color:var(--text2)" placeholder="מחושב מתאריך לידה"/>`;
+  if(f.key==='age'){
+    // Editable by hand; auto-computed and locked only when a birthdate is entered
+    return`<input class="form-input" type="text" id="${id}" value="${val}" maxlength="3" inputmode="numeric" placeholder="הזן גיל, או תאריך לידה למטה"/>`;
+  }
+  if(f.type==='computed'){
+    return`<input class="form-input" type="text" id="${id}" value="${val}" readonly style="background:var(--bg);color:var(--text2)"/>`;
   }
   if(f.key==='birthdate'){
     return`<input class="form-input" type="date" id="${id}" value="${val}" onchange="recalcAgeLive()"/>`;
@@ -1500,8 +1503,9 @@ function calcAgeFromBirthdate(bd){
   if(m<0||(m===0&&now.getDate()<b.getDate())) age--;
   return age>=0&&age<150?age:'';
 }
-function recalcAge(s){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value||s.birthdate); }
-function recalcAgeLive(){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(el&&bd) el.value=calcAgeFromBirthdate(bd.value); }
+function setAgeLock(el,locked){ el.readOnly=locked; el.style.background=locked?'var(--bg)':''; el.style.color=locked?'var(--text2)':''; }
+function recalcAge(s){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(!el||!bd) return; const b=bd.value||s.birthdate||''; if(b){ el.value=calcAgeFromBirthdate(b); setAgeLock(el,true); } else setAgeLock(el,false); }
+function recalcAgeLive(){ const el=document.getElementById('sf-age'); const bd=document.getElementById('sf-birthdate'); if(!el||!bd) return; if(bd.value){ el.value=calcAgeFromBirthdate(bd.value); setAgeLock(el,true); } else setAgeLock(el,false); }
 
 function checkIdLive(el){
   const warn=document.getElementById('sf-id_number-warn');
@@ -1543,6 +1547,11 @@ async function saveStudent(){
   [['email','אימייל'],['parent_email','אימייל הורה']].forEach(([k,label])=>{
     if(data[k]&&!isValidEmail(data[k])){ fmtErrors.push(`${label} אינו בפורמט תקין`); const el=document.getElementById(`sf-${k}`); if(el)el.style.borderColor='var(--red)'; }
   });
+  // Age typed by hand must be a sensible number
+  if(data.age&&(!/^\d{1,3}$/.test(data.age)||+data.age<1||+data.age>120)){
+    fmtErrors.push('גיל חייב להיות מספר בין 1 ל-120');
+    const el=document.getElementById('sf-age'); if(el)el.style.borderColor='var(--red)';
+  }
   // ID number: optional, but if given must be exactly 9 digits (duplicates only warn, never block)
   if(data.id_number&&!/^\d{9}$/.test(data.id_number)){
     fmtErrors.push('מספר ת.ז חייב להכיל 9 ספרות בדיוק');

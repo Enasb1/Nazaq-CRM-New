@@ -88,6 +88,8 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Age field: directly editable (1-120, validated). Entering a birthdate auto-computes and LOCKS the age
+  field (birthdate wins, incl. at save); clearing birthdate unlocks it. Birthdate remains optional.
 - Mobile/iPhone support: full @media(max-width:640px) block at END of <style> (must stay last to win
   specificity). Slim topbar, sticky scrollable nav, 2-col stat grid, stacked .resp-2col sections,
   tables scroll sideways inside .table-wrapper (min-width:640px), full-screen modals with sticky footer,
