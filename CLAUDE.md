@@ -88,6 +88,9 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Student-detail popup call history redesigned to match the rich call-modal cards: date, direction badge,
+  labeled caller name, details in padded box, followup done/pending state, comments; plus a
+  'ניהול / עריכת שיחות' button jumping to the full call-management modal (manageCallsFromDetail).
 - New student saved with status 'contacted' → call-history modal auto-opens with the new-call form
   expanded (datetime pre-filled to now) so the call gets documented immediately.
 - Form alignment: .form-input/.form-select/.form-textarea now width:100% + box-sizing:border-box;

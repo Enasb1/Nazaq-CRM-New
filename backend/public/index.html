@@ -1238,27 +1238,39 @@ function openDetail(id){
 
   // Call history
   const studentCalls=calls.filter(c=>c.student_id===id).sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
-  html+=`<div style="margin-top:16px"><div class="section-title" style="font-size:14px;margin-bottom:10px">📞 היסטוריית שיחות (${studentCalls.length})</div>`;
+  html+=`<div style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+      <div class="section-title" style="font-size:14px;margin:0">📞 היסטוריית שיחות (${studentCalls.length})</div>
+      <button class="btn btn-secondary btn-sm" onclick="manageCallsFromDetail()" style="font-size:11px;padding:4px 10px">🛠 ניהול / עריכת שיחות</button>
+    </div>`;
   if(!studentCalls.length){html+=`<div style="font-size:13px;color:var(--text3)">${t('no_calls')}</div>`;}
   else{
+    html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
     studentCalls.forEach(c=>{
+      const dt=(c.datetime||'').substring(0,16).replace('T',' ');
+      const dir=DIRECTION_MAP()[c.direction]||c.direction||'';
       const over=c.followup==='yes'&&c.followup_date&&!c.followup_done&&isOverdue(c.followup_date);
-      html+=`<div class="call-entry${over?' overdue':''}">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <strong style="font-size:12px">${(c.datetime||'').substring(0,16)}</strong>
-          <span style="font-size:11px;color:var(--text3)">${DIRECTION_MAP()[c.direction]||c.direction||''} · ${c.caller||''}</span>
+      html+=`<div style="border:1px solid ${over?'var(--red)':'var(--border)'};border-radius:10px;padding:12px 14px;background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <strong style="font-size:13px">📅 ${dt||'—'}</strong>
+          <span style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:6px">${dir}</span>
+          <span style="font-size:12px;color:var(--text2);font-weight:600">👤 מבצע השיחה: ${c.caller||'—'}</span>
         </div>
-        <div style="font-size:13px">${c.details||''}</div>
-        ${c.followup==='yes'?`<div style="font-size:11px;margin-top:4px;color:${over?'var(--red)':'var(--orange)'}">⏰ מעקב: ${formatDate(c.followup_date)}</div>`:''}
-        ${c.comments?`<div style="font-size:11px;color:var(--text3);margin-top:4px">💬 ${c.comments}</div>`:''}
+        <div style="font-size:13px;line-height:1.5;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word">${c.details?c.details:'<span style="color:var(--text3)">אין פרטים</span>'}</div>
+        ${c.followup==='yes'?(c.followup_done
+          ?`<div style="font-size:12px;margin-top:6px;color:var(--green);font-weight:600">✓ מעקב בוצע (${formatDate(c.followup_date)||''})</div>`
+          :`<div style="font-size:12px;margin-top:6px;color:${over?'var(--red)':'var(--orange)'};font-weight:600">⏰ מעקב: ${formatDate(c.followup_date)||''}${over?' (באיחור)':''}</div>`):''}
+        ${c.comments?`<div style="font-size:12px;color:var(--text3);margin-top:6px">💬 ${c.comments}</div>`:''}
       </div>`;
     });
+    html+=`</div>`;
   }
   html+='</div>';
   document.getElementById('detail-body').innerHTML=html;
   document.getElementById('modal-detail').classList.add('open');
 }
 function editFromDetail(){closeModal('modal-detail');if(detailStudentId)openEditStudent(detailStudentId);}
+function manageCallsFromDetail(){const id=detailStudentId;closeModal('modal-detail');if(id)openStudentCallHistory(id,false);}
 function addCallFromDetail(){closeModal('modal-detail');if(detailStudentId)addCallFromStudent(detailStudentId);}
 function openStudentCalls(id){
   showPage('calls');
