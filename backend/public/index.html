@@ -177,8 +177,8 @@ tr:hover td{background:var(--yellow-pale);}
 .opt-section.school{border-color:#B8D4E8;}
 .opt-section.parent .opt-section-head{background:var(--purple-bg);color:var(--purple);}
 .opt-section.parent{border-color:#C4A8E0;}
-.form-label{font-size:12px;font-weight:600;color:var(--text2);}
-.form-input,.form-select,.form-textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);background:var(--surface);outline:none;transition:border-color .2s;}
+.form-label{display:block;text-align:right;font-size:12px;font-weight:600;color:var(--text2);}
+.form-input,.form-select,.form-textarea{width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);background:var(--surface);outline:none;transition:border-color .2s;}
 .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--yellow);}
 .form-textarea{resize:vertical;min-height:80px;}
 .form-section-title{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--text);padding:10px 14px;margin:8px 0 2px;background:var(--surface2);border-radius:10px;border-right:4px solid var(--yellow);display:flex;align-items:center;gap:8px;}
@@ -1581,6 +1581,7 @@ async function saveStudent(){
     return;
   }
   try{
+    const wasNew=!editingStudentId;
     const saved=await saveStudent_api(data, editingStudentId);
     if(editingStudentId){
       const idx=students.findIndex(s=>s.id===editingStudentId);
@@ -1589,6 +1590,11 @@ async function saveStudent(){
       students.unshift(saved);
     }
     closeModal('modal-student'); renderStudents(); renderDashboard();
+    // Status "contacted" on a brand-new student means a call already happened — document it now
+    if(wasNew&&data.status==='contacted'&&saved&&saved.id){
+      openStudentCallHistory(saved.id, true);
+      document.getElementById('call-modal-title').textContent=`📞 תיעוד השיחה שבוצעה — ${((saved.fname||'')+' '+(saved.lname||'')).trim()}`;
+    }
   }catch(e){ showError('שגיאה בשמירה: '+e.message); }
 }
 
@@ -1753,7 +1759,7 @@ function pickStudent(id){
 
 // ── Student call history popup (one entry per student) ──
 let historyStudentId=null;
-function openStudentCallHistory(studentId){
+function openStudentCallHistory(studentId, expandNew){
   historyStudentId=studentId;
   _callbackForCallId=null;
   editingHistCallId=null;
@@ -1761,7 +1767,7 @@ function openStudentCallHistory(studentId){
   if(!s)return;
   document.getElementById('call-modal-title').textContent=`שיחות — ${s.fname||''} ${s.lname||''}`.trim();
   document.getElementById('call-modal-footer').innerHTML=`<button class="btn btn-secondary" onclick="closeModal('modal-call')">סגור</button>`;
-  renderCallHistoryBody(false);
+  renderCallHistoryBody(!!expandNew);
   document.getElementById('modal-call').classList.add('open');
 }
 

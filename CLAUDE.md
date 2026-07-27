@@ -88,6 +88,13 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- New student saved with status 'contacted' → call-history modal auto-opens with the new-call form
+  expanded (datetime pre-filled to now) so the call gets documented immediately.
+- Form alignment: .form-input/.form-select/.form-textarea now width:100% + box-sizing:border-box;
+  .form-label display:block text-align:right — uniform label anchor and input sizes in all forms.
+- NOTE: Playwright browser cannot be installed in current sandbox (cdn.playwright.dev not in network
+  allowlist) — UI changes since the age-field fix were verified by node --check + API smoke tests only;
+  owner visually confirms.
 - Age field: directly editable (1-120, validated). Entering a birthdate auto-computes and LOCKS the age
   field (birthdate wins, incl. at save); clearing birthdate unlocks it. Birthdate remains optional.
 - Mobile/iPhone support: full @media(max-width:640px) block at END of <style> (must stay last to win
