@@ -64,9 +64,12 @@ router.put('/:id', async (req, res) => {
   try {
     const cleaned = {};
     for (const [k, v] of Object.entries(req.body)) cleaned[k] = (v === '') ? null : v;
+    const { data: oldCall } = await supabase.from('calls').select('*').eq('id', req.params.id).single();
     const { data, error } = await supabase.from('calls').update({ ...cleaned, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
     if (error || !data) return res.status(404).json({ error: 'Call not found' });
-    await auditLog(req.user.id, req.user.username, `Updated call record`, 'edit', `ID: ${req.params.id}`);
+    const { diffFields } = require('../utils/auditDiff');
+    const changes = diffFields(oldCall, cleaned);
+    await auditLog(req.user.id, req.user.username, `Updated call: ${data.fname||''} ${data.lname||''}`.trim(), 'edit', changes || `ID: ${req.params.id}`);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -76,9 +79,10 @@ router.put('/:id', async (req, res) => {
 // DELETE /calls/:id
 router.delete('/:id', async (req, res) => {
   try {
+    const { data: c } = await supabase.from('calls').select('fname,lname,datetime').eq('id', req.params.id).single();
     const { error } = await supabase.from('calls').delete().eq('id', req.params.id);
     if (error) throw error;
-    await auditLog(req.user.id, req.user.username, `Deleted call record`, 'delete', `ID: ${req.params.id}`);
+    await auditLog(req.user.id, req.user.username, `Deleted call: ${(c?.fname||'')+' '+(c?.lname||'')}`.trim(), 'delete', c?.datetime?`מועד השיחה: ${String(c.datetime).substring(0,16).replace('T',' ')}`:`ID: ${req.params.id}`);
     res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

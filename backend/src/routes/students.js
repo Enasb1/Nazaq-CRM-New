@@ -91,10 +91,13 @@ router.put('/:id', async (req, res) => {
     for (const [k, v] of Object.entries(req.body)) {
       cleaned[k] = (v === '') ? null : v;
     }
+    const { data: oldRow } = await supabase.from('students').select('*').eq('id', req.params.id).single();
     const encrypted = encryptStudent({ ...cleaned, updated_at: new Date().toISOString() });
     const { data, error } = await supabase.from('students').update(encrypted).eq('id', req.params.id).select().single();
     if (error || !data) return res.status(404).json({ error: 'Student not found' });
-    await auditLog(req.user.id, req.user.username, `Updated student: ${data.fname} ${data.lname||''}`, 'edit', `Status: ${data.status}`);
+    const { diffFields } = require('../utils/auditDiff');
+    const changes = diffFields(oldRow ? decryptStudent(oldRow) : null, cleaned);
+    await auditLog(req.user.id, req.user.username, `Updated student: ${data.fname} ${data.lname||''}`, 'edit', changes || `Status: ${data.status}`);
     res.json(decryptStudent(data));
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

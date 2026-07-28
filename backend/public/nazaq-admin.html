@@ -178,12 +178,12 @@ async function loadAudit(page){
     <td class="muted" dir="ltr" style="text-align:right;white-space:nowrap">${String(r.created_at||'').substring(0,16).replace('T',' ')}</td>
     <td style="font-weight:700">${r.username||''}</td>
     <td>${TYPE_HE[r.type]||r.type||''} — ${r.action||''}</td>
-    <td class="muted">${r.details||''}</td></tr>`).join('');
+    <td class="muted">${r.detail||''}</td></tr>`).join('');
   document.getElementById('audit-count').textContent=`מוצגות ${auditRows.length} מתוך ${d.total??'?'} פעולות`;
 }
 function exportAudit(){
   if(!auditRows.length){alert('אין נתונים לייצוא — לחץ קודם "הצג"');return;}
-  const data=auditRows.map(r=>({'תאריך ושעה':String(r.created_at||'').substring(0,16).replace('T',' '),'משתמש':r.username||'','סוג':(TYPE_HE[r.type]||r.type||'').replace(/^[^ ]+ /,''),'פעולה':r.action||'','פרטים':r.details||''}));
+  const data=auditRows.map(r=>({'תאריך ושעה':String(r.created_at||'').substring(0,16).replace('T',' '),'משתמש':r.username||'','סוג':(TYPE_HE[r.type]||r.type||'').replace(/^[^ ]+ /,''),'פעולה':r.action||'','פרטים':r.detail||''}));
   const ws=XLSX.utils.json_to_sheet(data); ws['!cols']=[{wch:16},{wch:12},{wch:10},{wch:40},{wch:40}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'יומן פעילות');
   XLSX.writeFile(wb,`nazaq-audit-${new Date().toISOString().substring(0,10)}.xlsx`);

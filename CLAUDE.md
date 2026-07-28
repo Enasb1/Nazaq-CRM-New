@@ -106,6 +106,12 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Rich audit details: field-level diffs on student/call edits (auditDiff.js, Hebrew labels, id_number
+  value never logged), deletes log person name + datetime, meetings log student name + meeting time +
+  summary snippet. NOTE: audit_log column is `detail` (singular) — panel + email read it.
+- Daily email report (src/utils/dailyReport.js): inert until RESEND_API_KEY + REPORT_EMAIL env vars set
+  in Railway; then sends daily at REPORT_HOUR_UTC (default 4 UTC ≈ 07:00 IL) via Resend API, grouped
+  per user with counts + up to 60 rows each, from address onboarding@resend.dev.
 - Roles & permissions: agents (role='agent') limited to dashboard/students/calls/meetings — frontend
   (tabs hidden, showPage guard, export button hidden via .admin-only-btn) + backend (doctors API now
   requireAdmin; semester/config writes + users/audit/welcome-stats were already admin-only).
