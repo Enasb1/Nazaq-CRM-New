@@ -692,6 +692,7 @@ function setLang(l){
 const DEFAULT_STUDENT_FIELDS = [
   {key:'fname',      label:'שם פרטי',         type:'text',     locked:true, required:true,  tableCol:true,  section:'personal'},
   {key:'lname',      label:'שם משפחה',         type:'text',     locked:true, required:false,  tableCol:true,  section:'personal'},
+  {key:'lead_type',  label:'סוג פנייה',         type:'select',   locked:false,required:false, tableCol:false, section:'personal', options:['student','parent']},
   {key:'phone1',     label:'טלפון 1',           type:'phone',    locked:true, required:true,  tableCol:true,  section:'personal'},
   {key:'phone2',     label:'טלפון 2',           type:'phone',    locked:false,required:false, tableCol:false, section:'personal'},
   {key:'email',      label:'אימייל',            type:'email',    locked:false,required:false,  tableCol:true,  section:'personal'},
@@ -959,6 +960,15 @@ function showPage(p){
 const STATUS_LABELS=()=>({new:t('s_new'),contacted:t('s_contacted'),callback:t('s_callback'),notinterested:t('s_notinterested'),registered:t('s_registered'),invited:t('s_invited')});
 const STATUS_CLASS={new:'s-new',contacted:'s-contacted',callback:'s-callback',notinterested:'s-notinterested',registered:'s-registered',invited:'s-invited'};
 const HOW_HEARD_MAP=()=>({social_media:'רשתות חברתיות',friend:'חבר/ה',school:'בית ספר',radio:'רדיו',signage:'שילוט',other:'אחר'});
+function formatPhone(p){
+  if(!p) return p;
+  const d=String(p).replace(/\D/g,'');
+  if(d.length===10&&d.startsWith('0')) return d.substring(0,3)+'-'+d.substring(3);
+  if(d.length===9&&d.startsWith('0'))  return d.substring(0,2)+'-'+d.substring(2);
+  return p;
+}
+const LEAD_TYPE_MAP=()=>({student:'תלמיד/ה',parent:'הורה (פונה עבור ילדו/ה)'});
+function parentBadgeHTML(s){return s&&s.lead_type==='parent'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF0FF;color:#5B5BD6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="רשומת הורה — פונה עבור ילדו/ה">👨‍👩‍👦 הורה</span>`:'';}
 const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
 const SEM_TYPE_COLOR={autumn:{bg:'#FEF0E3',color:'#D4670A'},spring:{bg:'#E8F5EE',color:'#2E7D52'},summer:{bg:'#FFF8DC',color:'#C8860A'}};
 
@@ -1036,7 +1046,7 @@ function renderDashboard(){
   if(!fu.length){fl.innerHTML=`<div class="empty-state"><div>✅</div><div>${t('no_calls')}</div></div>`;return;}
   fl.innerHTML=fu.map(c=>{
     const over=isOverdue(c.followup_date);
-    return`<div class="followup-item${over?' overdue':''}"><div style="flex:1"><div style="font-weight:600;font-size:13px">${c.fname||''} ${c.lname||''}</div><div style="font-size:12px;color:var(--text3)">${c.phone||''}</div></div><div style="font-size:12px;font-weight:${over?700:500};color:${over?'var(--red)':'var(--text2)'}">${over?'⚠️ '+t('overdue')+' · ':''} ${formatDate(c.followup_date)}</div></div>`;
+    return`<div class="followup-item${over?' overdue':''}"><div style="flex:1"><div style="font-weight:600;font-size:13px">${c.fname||''} ${c.lname||''}</div><div style="font-size:12px;color:var(--text3)" dir="ltr">${formatPhone(c.phone)||''}</div></div><div style="font-size:12px;font-weight:${over?700:500};color:${over?'var(--red)':'var(--text2)'}">${over?'⚠️ '+t('overdue')+' · ':''} ${formatDate(c.followup_date)}</div></div>`;
   }).join('');
 }
 
@@ -1151,9 +1161,11 @@ function renderStudents(){
       const lc=lastCallDate(s.id);
       const cells=cols.map(f=>{
         const val=s[f.key];
+        if(f.type==='phone') return`<td dir="ltr" style="text-align:right;font-size:13px;white-space:nowrap">${formatPhone(val)||'—'}</td>`;
+        if(f.key==='lead_type') return`<td>${LEAD_TYPE_MAP()[val]||'תלמיד/ה'}</td>`;
         if(f.key==='fname'){
           const waBadge=s.source==='whatsapp'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#E8F8EF;color:#1FA855;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="נוסף אוטומטית מוואטסאפ">💬 ${s.lead_date?formatDate(s.lead_date):''}</span>`:'';
-          return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong>${waBadge}</td>`;
+          return`<td><strong>${(s.fname||'')} ${(s.lname||'')}</strong>${parentBadgeHTML(s)}${waBadge}</td>`;
         }
         if(f.key==='status') return`<td>${statusBadge(s.status)}</td>`;
         if(f.key==='semester_id') return`<td>${semBadgeHTML(s.semester_id)}</td>`;
@@ -1215,7 +1227,7 @@ function openDetail(id){
   if(!s)return;
   detailStudentId=id;
   document.getElementById('detail-name').textContent=`${s.fname||''} ${s.lname||''}`;
-  document.getElementById('detail-status-badge').innerHTML=statusBadge(s.status);
+  document.getElementById('detail-status-badge').innerHTML=statusBadge(s.status)+parentBadgeHTML(s);
   const av=document.getElementById('detail-avatar');
   av.className=`avatar ${avatarClass(s)}`; av.textContent=avatarInitials(s);
   document.getElementById('modal-detail-inner').classList.remove('edit-mode');
@@ -1252,6 +1264,8 @@ function openDetail(id){
       if(val===undefined||val===null||val==='') val='—';
       else if(f.key==='status') val=STATUS_LABELS()[val]||val;
       else if(f.key==='appointment_at') val=String(val).substring(0,16).replace('T',' ');
+      else if(f.type==='phone') val=formatPhone(val);
+      else if(f.key==='lead_type') val=LEAD_TYPE_MAP()[val]||'תלמיד/ה';
       else if(f.key==='semester_id') val=getSemester(val)?.name||'—';
       else if(f.key==='how_heard') val=HOW_HEARD_MAP()[val]||val;
       else if(f.key==='direction') val=DIRECTION_MAP()[val]||val;
@@ -1594,6 +1608,9 @@ function inputHTML(f,s,semOpts){
   if(f.key==='semester_id'){
     return`<select class="form-select" id="${id}">${semOpts||''}</select>`;
   }
+  if(f.key==='lead_type'){
+    return`<select class="form-select" id="${id}"><option value="student"${val!=='parent'?'selected':''}>תלמיד/ה</option><option value="parent"${val==='parent'?'selected':''}>👨‍👩‍👦 הורה — פונה עבור ילדו/ה</option></select>`;
+  }
   if(f.key==='how_heard'){
     const opts=['social_media','friend','school','radio','signage','other'];
     return`<select class="form-select" id="${id}"><option value="">—</option>${opts.map(o=>`<option value="${o}"${val===o?'selected':''}>${HOW_HEARD_MAP()[o]}</option>`).join('')}</select>`;
@@ -1704,7 +1721,13 @@ async function saveStudent(){
   }
   try{
     const wasNew=!editingStudentId;
-    const saved=await saveStudent_api(data, editingStudentId);
+    let saved;
+    try{ saved=await saveStudent_api(data, editingStudentId); }
+    catch(err){
+      // Graceful fallback until the lead_type column is added in Supabase
+      if('lead_type' in data){ delete data.lead_type; saved=await saveStudent_api(data, editingStudentId); }
+      else throw err;
+    }
     if(editingStudentId){
       const idx=students.findIndex(s=>s.id===editingStudentId);
       if(idx!==-1) students[idx]={...students[idx],...saved};
@@ -1779,7 +1802,7 @@ function renderCalls(){
     return`<tr style="cursor:pointer" onclick="${editTarget}">
       <td><strong>${r.name||'—'}</strong> <span style="color:var(--text3);font-size:12px">(${r.list.length})</span>${isOrphan?' <span style="color:var(--red);font-size:11px">(תלמיד נמחק)</span>':''}</td>
       <td style="font-size:12px">${dt||'—'}</td>
-      <td dir="ltr" style="text-align:right">${r.phone||'—'}</td>
+      <td dir="ltr" style="text-align:right;white-space:nowrap">${formatPhone(r.phone)||'—'}</td>
       <td>${fu}</td>
       <td><div class="actions" onclick="event.stopPropagation()">
         <button class="act-btn" onclick="${editTarget}">✏️ <span style="font-size:11px">${t('edit')}</span></button>
@@ -1875,7 +1898,7 @@ function onStudentSearchInput(){
   if(q) matches=students.filter(s=>`${s.fname||''} ${s.lname||''} ${s.phone1||''}`.toLowerCase().includes(q));
   matches=matches.slice(0,8);
   if(!matches.length){ dd.style.display='none'; if(!q) hidden.value=''; return; }
-  dd.innerHTML=matches.map(s=>`<div class="autocomplete-item" onclick="pickStudent('${s.id}')">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:12px">· ${s.phone1}</span>`:''}</div>`).join('');
+  dd.innerHTML=matches.map(s=>`<div class="autocomplete-item" onclick="pickStudent('${s.id}')">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:12px">· ${formatPhone(s.phone1)}</span>`:''}</div>`).join('');
   dd.style.display='block';
 }
 function pickStudent(id){
@@ -1908,7 +1931,7 @@ function renderCallHistoryBody(expandNew){
     .sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
 
   let html=`<div class="form-group full"><label class="form-label">תלמיד</label>
-    <div style="padding:10px 14px;background:var(--bg);border-radius:10px;font-weight:600">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:13px">· ${s.phone1}</span>`:''}</div>
+    <div style="padding:10px 14px;background:var(--bg);border-radius:10px;font-weight:600">${s.fname||''} ${s.lname||''} ${s.phone1?`<span style="color:var(--text3);font-size:13px" dir="ltr">· ${formatPhone(s.phone1)}</span>`:''}</div>
   </div>`;
 
   // Collapsible "new call" section

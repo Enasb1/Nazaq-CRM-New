@@ -70,6 +70,8 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
   (allows inline scripts + cdn.jsdelivr.net — needed, do not remove).
 
 ## OPEN ITEMS (next conversation should start here)
+00. **Run lead_type SQL** — `ALTER TABLE students ADD COLUMN lead_type TEXT DEFAULT 'student';`
+    Until run, saveStudent silently retries without lead_type (badge won't persist).
 0. **Run meetings SQL** — meetings feature deployed; owner must create the table (SQL below).
    Until then: calendar still works from legacy students.appointment_at; creating meetings/summaries
    shows an error. SQL:
@@ -104,6 +106,11 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Phone display: formatPhone() → 054-8874587 (10-digit 3-7, 9-digit 2-7); applied in students table,
+  detail popup, calls page, dashboard followups, call-modal header, autocomplete. Storage unchanged.
+- Parent leads: students.lead_type ('student'|'parent') select in form ("סוג פנייה"), 👨‍👩‍👦 הורה badge
+  in table + detail header, Hebrew labels via LEAD_TYPE_MAP. saveStudent retries without lead_type if
+  the column doesn't exist yet.
 - Meetings system: meetings table (many per student, each with summary), CRUD /api/meetings (auth,
   audit-logged). Detail popup: 🗓️ פגישות section — add meeting (date+time), עתידית/התקיימה badge,
   inline summary editor (📝), delete; legacy students.appointment_at shown as items and converted to
