@@ -106,6 +106,14 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Roles & permissions: agents (role='agent') limited to dashboard/students/calls/meetings — frontend
+  (tabs hidden, showPage guard, export button hidden via .admin-only-btn) + backend (doctors API now
+  requireAdmin; semester/config writes + users/audit/welcome-stats were already admin-only).
+- Admin panel built at /nazaq-admin.html (the ⚙️ Admin link was a dead link before): admin login,
+  user management (create/password/activate-deactivate via existing /api/users), activity log viewer
+  (filters by user+type, pagination, Hebrew type labels, XLSX export via cdnjs SheetJS).
+- Owner creates lili (agent) herself via the panel; owner changes admin password herself via the panel
+  (never share passwords in chat).
 - Phone display: formatPhone() → 054-8874587 (10-digit 3-7, 9-digit 2-7); applied in students table,
   detail popup, calls page, dashboard followups, call-modal header, autocomplete. Storage unchanged.
 - Parent leads: students.lead_type ('student'|'parent') select in form ("סוג פנייה"), 👨‍👩‍👦 הורה badge

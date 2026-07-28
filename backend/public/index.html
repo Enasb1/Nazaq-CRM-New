@@ -373,7 +373,7 @@ tr:hover td{background:var(--yellow-pale);}
       <div class="section-header">
         <div class="section-title" data-t="nav_students">תלמידים</div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary" onclick="exportExcel()">⬇️ <span data-t="export_excel">ייצוא Excel</span></button>
+          <button class="btn btn-secondary admin-only-btn" onclick="exportExcel()">⬇️ <span data-t="export_excel">ייצוא Excel</span></button>
           <button class="btn btn-primary" onclick="openAddStudent()">＋ <span data-t="add_student">הוסף תלמיד</span></button>
         </div>
       </div>
@@ -880,6 +880,9 @@ async function doLogin(){
     const isAdmin=(currentUser.role==='admin');
     document.getElementById('admin-panel-link').style.display=isAdmin?'inline-flex':'none';
     document.getElementById('tab-config').style.display=isAdmin?'flex':'none';
+    document.getElementById('tab-semesters').style.display=isAdmin?'flex':'none';
+    document.getElementById('tab-doctors').style.display=isAdmin?'flex':'none';
+    document.querySelectorAll('.admin-only-btn').forEach(b=>b.style.display=isAdmin?'':'none');
     await loadData();
     setLang('he');
     renderAll();
@@ -941,6 +944,8 @@ setInterval(checkInactivity,30000);
 // NAVIGATION
 // ══════════════════════════════════════════
 function showPage(p){
+  // Agents (non-admin) may only open: dashboard, students, calls, meetings
+  if(currentUser&&currentUser.role!=='admin'&&!['dashboard','students','calls','meetings'].includes(p)) return;
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');

@@ -1,10 +1,10 @@
 const express = require('express');
 const supabase = require('../config/supabase');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { auditLog } = require('../middleware/audit');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth, requireAdmin); // doctors course + payments: admin only
 
 const clean = (body) => {
   const o = {};
