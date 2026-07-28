@@ -673,6 +673,19 @@ const T = {
 let lang='he';
 function t(k){return(T[lang]&&T[lang][k])||T.he[k]||k;}
 
+function applyRoleGates(){
+  if(!currentUser) return;
+  const isAdmin=(currentUser.role==='admin');
+  ['admin-panel-link','tab-config','tab-semesters','tab-doctors'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display=isAdmin?(id==='admin-panel-link'?'inline-flex':'flex'):'none';
+  });
+  document.querySelectorAll('.admin-only-btn').forEach(b=>b.style.display=isAdmin?'':'none');
+  // If an agent somehow has an admin page open, bounce to the dashboard
+  if(!isAdmin){
+    const active=document.querySelector('.page.active');
+    if(active&&['page-semesters','page-doctors','page-config'].includes(active.id)) showPage('dashboard');
+  }
+}
 function setLang(l){
   lang=l;
   document.documentElement.lang=l;
@@ -2864,6 +2877,7 @@ document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click
 // RENDER ALL
 // ══════════════════════════════════════════
 function renderAll(){
+  applyRoleGates();
   renderDashboard();
   renderStudentFilters();
   if(document.getElementById('page-students').classList.contains('active')) renderStudents();
