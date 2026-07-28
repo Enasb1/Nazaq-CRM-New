@@ -90,8 +90,10 @@ td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
           <button class="btn btn-secondary" onclick="exportAudit()">⬇️ ייצוא לאקסל</button>
         </div>
         <div style="overflow-x:auto"><table><thead><tr><th style="width:140px">מתי</th><th>משתמש</th><th>פעולה</th><th>פרטים</th></tr></thead><tbody id="audit-tbody"></tbody></table></div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
-          <button class="btn btn-secondary btn-sm" onclick="loadAudit(auditPage+1)">טען עוד</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" id="pg-prev" onclick="loadAudit(auditPage-1)">▶ קודם</button>
+          <span style="font-weight:700;font-size:13px" id="audit-page"></span>
+          <button class="btn btn-secondary btn-sm" id="pg-next" onclick="loadAudit(auditPage+1)">הבא ◀</button>
           <span class="muted" id="audit-count"></span>
         </div>
       </div>
@@ -169,21 +171,32 @@ async function toggleActive(id,activate){
 // ── AUDIT ──
 const TYPE_HE={login:'🔓 כניסה',logout:'🔒 יציאה',create:'➕ הוספה',edit:'✏️ עריכה',delete:'🗑 מחיקה',security:'🛡 אבטחה'};
 async function loadAudit(page){
+  if(page<1)return;
   auditPage=page;
   const u=document.getElementById('au-user').value, t=document.getElementById('au-type').value;
   const d=await api('GET',`/api/audit?page=${page}&limit=100${u?'&username='+encodeURIComponent(u):''}${t?'&type='+encodeURIComponent(t):''}`);
-  const rows=d.data||[];
-  auditRows=page===1?rows:auditRows.concat(rows);
+  auditRows=d.data||[];
+  const totalPages=Math.max(1,Math.ceil((d.total||0)/100));
+  document.getElementById('audit-page').textContent=`עמוד ${page} מתוך ${totalPages}`;
+  document.getElementById('pg-prev').disabled=page<=1;
+  document.getElementById('pg-next').disabled=page>=totalPages;
   document.getElementById('audit-tbody').innerHTML=auditRows.map(r=>`<tr>
     <td class="muted" dir="ltr" style="text-align:right;white-space:nowrap">${String(r.created_at||'').substring(0,16).replace('T',' ')}</td>
     <td style="font-weight:700">${r.username||''}</td>
     <td>${TYPE_HE[r.type]||r.type||''} — ${r.action||''}</td>
     <td class="muted">${r.detail||''}</td></tr>`).join('');
-  document.getElementById('audit-count').textContent=`מוצגות ${auditRows.length} מתוך ${d.total??'?'} פעולות`;
+  document.getElementById('audit-count').textContent=`סה"כ ${d.total??'?'} פעולות בסינון הנוכחי`;
 }
-function exportAudit(){
-  if(!auditRows.length){alert('אין נתונים לייצוא — לחץ קודם "הצג"');return;}
-  const data=auditRows.map(r=>({'תאריך ושעה':String(r.created_at||'').substring(0,16).replace('T',' '),'משתמש':r.username||'','סוג':(TYPE_HE[r.type]||r.type||'').replace(/^[^ ]+ /,''),'פעולה':r.action||'','פרטים':r.detail||''}));
+async function exportAudit(){
+  const u=document.getElementById('au-user').value, t=document.getElementById('au-type').value;
+  let all=[];
+  for(let p=1;p<=20;p++){
+    const d=await api('GET',`/api/audit?page=${p}&limit=100${u?'&username='+encodeURIComponent(u):''}${t?'&type='+encodeURIComponent(t):''}`);
+    all=all.concat(d.data||[]);
+    if(!d.data||d.data.length<100)break;
+  }
+  if(!all.length){alert('אין נתונים לייצוא בסינון הנוכחי');return;}
+  const data=all.map(r=>({'תאריך ושעה':String(r.created_at||'').substring(0,16).replace('T',' '),'משתמש':r.username||'','סוג':(TYPE_HE[r.type]||r.type||'').replace(/^[^ ]+ /,''),'פעולה':r.action||'','פרטים':r.detail||''}));
   const ws=XLSX.utils.json_to_sheet(data); ws['!cols']=[{wch:16},{wch:12},{wch:10},{wch:40},{wch:40}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'יומן פעילות');
   XLSX.writeFile(wb,`nazaq-audit-${new Date().toISOString().substring(0,10)}.xlsx`);
