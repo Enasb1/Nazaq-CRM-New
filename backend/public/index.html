@@ -314,7 +314,7 @@ tr:hover td{background:var(--yellow-pale);}
     </div>
     <button class="login-btn" onclick="doLogin()">כניסה</button>
     <div class="login-error" id="login-error"></div>
-    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-04.1</div>
+    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-04.2</div>
   </div>
 </div>
 
@@ -987,6 +987,11 @@ function formatPhone(p){
   return p;
 }
 const LEAD_TYPE_MAP=()=>({student:'תלמיד/ה',parent:'הורה (פונה עבור ילדו/ה)'});
+function nowILStr(){ // current time in Israel as YYYY-MM-DDTHH:MM (for datetime-local inputs)
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date());
+  const g=t=>parts.find(x=>x.type===t).value;
+  return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
+}
 function defaultCaller(){ return currentUser?(((currentUser.fname||'').trim())||currentUser.username||''):''; }
 function parentBadgeHTML(s){return s&&s.lead_type==='parent'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF0FF;color:#5B5BD6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="רשומת הורה — פונה עבור ילדו/ה">👨‍👩‍👦 הורה</span>`:'';}
 const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
@@ -1852,7 +1857,7 @@ function openAddCall(studentId){
       <button class="btn btn-secondary" onclick="closeModal('modal-call')" data-t="cancel">ביטול</button>
       <button class="btn btn-secondary" id="btn-save-add-another" onclick="saveCall(true)">שמור והוסף עוד לאותו תלמיד</button>
       <button class="btn btn-primary" onclick="saveCall()" data-t="save">שמור</button>`;
-  buildCallForm({datetime:new Date().toISOString().substring(0,16),direction:'initiated',followup:'no'});
+  buildCallForm({datetime:nowILStr(),direction:'initiated',followup:'no'});
   document.getElementById('modal-call').classList.add('open');
 }
 function openEditCall(id){
@@ -1962,7 +1967,7 @@ function renderCallHistoryBody(expandNew){
     <div id="new-call-body" style="display:${expandNew?'block':'none'};padding:14px;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px">
       <div class="form-grid">
         <div class="form-group"><label class="form-label">מבצע השיחה</label><input type="text" class="form-input" id="nc-caller" value="${callerVal.replace(/"/g,'&quot;')}"/></div>
-        <div class="form-group"><label class="form-label">תאריך ושעה</label><input type="datetime-local" class="form-input" id="nc-datetime" value="${new Date().toISOString().substring(0,16)}"/></div>
+        <div class="form-group"><label class="form-label">תאריך ושעה</label><input type="datetime-local" class="form-input" id="nc-datetime" value="${nowILStr()}"/></div>
         <div class="form-group"><label class="form-label">כיוון</label><select class="form-select" id="nc-direction"><option value="initiated">יוצאת</option><option value="received">נכנסת</option></select></div>
         <div class="form-group"><label class="form-label">מעקב</label><select class="form-select" id="nc-followup" onchange="toggleNcFollowup()"><option value="no">לא</option><option value="yes">כן</option></select></div>
         <div class="form-group"><label class="form-label">סטטוס התלמיד</label><select class="form-select" id="nc-status" onchange="toggleNcAppointment()">${Object.entries(STATUS_LABELS()).map(([v,l])=>`<option value="${v}"${(s.status||'new')===v?'selected':''}>${l}</option>`).join('')}</select></div>
@@ -2176,7 +2181,7 @@ async function saveCall(addAnother){
     renderCalls(); renderDashboard(); renderStudents();
     if(addAnother && !editingCallId){
       // Keep same student, reset call detail fields for a fresh entry
-      buildCallForm({student_id:studentId, datetime:new Date().toISOString().substring(0,16), direction:'initiated', followup:'no'});
+      buildCallForm({student_id:studentId, datetime:nowILStr(), direction:'initiated', followup:'no'});
     } else {
       closeModal('modal-call');
     }
