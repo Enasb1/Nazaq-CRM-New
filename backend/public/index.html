@@ -986,6 +986,7 @@ function formatPhone(p){
   return p;
 }
 const LEAD_TYPE_MAP=()=>({student:'תלמיד/ה',parent:'הורה (פונה עבור ילדו/ה)'});
+function defaultCaller(){ return currentUser?(((currentUser.fname||'').trim())||currentUser.username||''):''; }
 function parentBadgeHTML(s){return s&&s.lead_type==='parent'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF0FF;color:#5B5BD6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="רשומת הורה — פונה עבור ילדו/ה">👨‍👩‍👦 הורה</span>`:'';}
 const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
 const SEM_TYPE_COLOR={autumn:{bg:'#FEF0E3',color:'#D4670A'},spring:{bg:'#E8F5EE',color:'#2E7D52'},summer:{bg:'#FFF8DC',color:'#C8860A'}};
@@ -1890,7 +1891,7 @@ function buildCallForm(c){
       html+=`<div class="form-group"><label class="form-label">${f.label}</label><select class="form-select" id="cf-followup" onchange="toggleFollowupDate()"><option value="no"${c.followup!=='yes'?'selected':''}>לא</option><option value="yes"${c.followup==='yes'?'selected':''}>כן</option></select></div>`;
       html+=`<div class="form-group" id="cf-fudate-group" style="${c.followup!=='yes'?'display:none':''}"><label class="form-label">תאריך מעקב</label><input type="date" class="form-input" id="cf-followup_date" value="${c.followup_date||''}"/></div>`;
     } else if(f.key==='caller'){
-      const callerVal=c.caller||'ליליאן';
+      const callerVal=c.caller||defaultCaller();
       html+=`<div class="form-group"><label class="form-label">${f.label}</label><input type="text" class="form-input" id="cf-caller" value="${(callerVal).replace(/"/g,'&quot;')}"/></div>`;
     } else if(f.key==='direction'){
       html+=`<div class="form-group"><label class="form-label">${f.label}</label><select class="form-select" id="cf-direction"><option value="initiated"${c.direction!=='received'?'selected':''}>יוצאת</option><option value="received"${c.direction==='received'?'selected':''}>נכנסת</option></select></div>`;
@@ -1944,7 +1945,7 @@ function openStudentCallHistory(studentId, expandNew){
 function renderCallHistoryBody(expandNew){
   const s=students.find(x=>x.id===historyStudentId);
   if(!s)return;
-  const callerVal='ליליאן';
+  const callerVal=defaultCaller();
   const studentCalls=calls.filter(c=>c.student_id===historyStudentId)
     .sort((a,b)=>new Date(b.datetime||b.created_at)-new Date(a.datetime||a.created_at));
 
