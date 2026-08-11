@@ -107,13 +107,14 @@ regPublicRouter.get('/:token', async (req, res) => {
     const { data: stRaw } = await supabase.from('students').select('*').eq('id', reg.student_id).single();
     if (!stRaw) return res.status(404).json({ error: 'קישור לא תקין' });
     const st = decryptStudent(stRaw);
+    const isParentLead = (st.lead_type === 'parent');
     res.json({
       status: reg.status,
       signed_at: reg.signed_at,
-      student: {
-        fname: st.fname || '', lname: st.lname || '',
-        id_number: st.id_number || '', phone1: st.phone1 || '',
-      },
+      lead_type: st.lead_type || 'student',
+      student: isParentLead
+        ? { fname: '', lname: '', id_number: '', phone1: '' } // CRM holds the PARENT's details — student fills their own
+        : { fname: st.fname || '', lname: st.lname || '', id_number: st.id_number || '', phone1: st.phone1 || '' },
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -161,6 +162,14 @@ regPublicRouter.post('/:token', async (req, res) => {
       const { data: stRaw } = await supabase.from('students').select('*').eq('id', reg.student_id).single();
       if (stRaw) {
         const st = decryptStudent(stRaw);
+        if (st.lead_type === 'parent') {
+          // Keep the parent's contact details intact; just move the status forward
+          if (st.status !== 'registered') {
+            let su = await supabase.from('students').update({ status: 'signed', updated_at: new Date().toISOString() }).eq('id', reg.student_id).select('id').single();
+            if (su.error) console.error('[REG] parent-lead status update error:', su.error.message);
+          }
+          await auditLog(null, 'student-signature', `Contract signed (parent lead): ${fullName}`, 'create', `פרטי התלמיד בטופס בלבד — פרטי ההורה בכרטיס נשמרו`);
+        } else {
         const parts = fullName.split(/\s+/);
         const newFname = parts[0] || st.fname;
         const newLname = parts.slice(1).join(' ');
@@ -180,6 +189,7 @@ regPublicRouter.post('/:token', async (req, res) => {
             if (Object.keys(rest).length) await supabase.from('students').update(encryptStudent({ ...rest, updated_at: new Date().toISOString() })).eq('id', reg.student_id).select('id').single();
           }
           if (diff) await auditLog(null, 'student-signature', `Student updated own details: ${fullName}`, 'edit', diff);
+        }
         }
       }
     } catch (e) { console.error('[REG] student sync error:', e.message); }
