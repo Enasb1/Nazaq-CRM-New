@@ -60,15 +60,21 @@ input[type=text]{width:100%;padding:11px;font-size:16px;border:1.5px solid var(-
   <div id="form-area" class="hide">
     <div class="card">
       <h2>1. تفاصيل التسجيل</h2>
-      <div class="field"><b>اسم الطالب/ة:</b><span id="f-name"></span></div>
-      <div class="field"><b>رقم الهوية:</b><span id="f-id" dir="ltr"></span></div>
-      <div class="field"><b>رقم الهاتف:</b><span id="f-phone" dir="ltr"></span></div>
-      <div class="note">إذا كانت هناك أي معلومات غير صحيحة — يرجى التواصل مع المركز قبل التوقيع.</div>
+      <label style="font-weight:700;font-size:14px;display:block">اسم الطالب/ة الكامل:
+        <input type="text" id="f-name" autocomplete="name"/>
+      </label>
+      <label style="font-weight:700;font-size:14px;display:block;margin-top:10px">رقم الهوية:
+        <input type="text" id="f-id" dir="ltr" inputmode="numeric" maxlength="9" placeholder="9 أرقام"/>
+      </label>
+      <label style="font-weight:700;font-size:14px;display:block;margin-top:10px">رقم الهاتف:
+        <input type="text" id="f-phone" dir="ltr" inputmode="tel" placeholder="05X-XXXXXXX"/>
+      </label>
+      <div class="note">✏️ يمكنك تصحيح التفاصيل أعلاه إذا كانت غير دقيقة — التفاصيل المصحّحة ستُحفظ لدى المركز.</div>
     </div>
 
     <div class="card">
       <h2>2. نظرة عامة عن البرنامج</h2>
-      <p style="font-size:14px">«إكسبرس عالجامعة» هو برنامج تأهيلي وأكاديمي يمتد على ثلاثة فصول تعليمية في مركز الناصرة للتأهيل، ويهدف إلى إعداد الطالب للقبول المباشر في جامعة حيفا للّقب متعدد المجالات (תואר רב תחומי)، بدون امتحان البسيخومتري وبدون امتحان ياعيل، مع إمكانية الاعتراف بـ 30 نقطة استحقاق ضمن اللقب الأول.</p>
+      <p style="font-size:14px">«إكسبرس عالجامعة» هو برنامج تأهيلي وأكاديمي يمتد على ثلاثة فصول تعليمية في مركز الناصرة للتأهيل، ويهدف إلى إعداد الطالب للقبول المباشر في جامعة حيفا للّقب متعدّد التخصّصات (תואר רב תחומי)، بدون امتحان البسيخومتري وبدون امتحان ياعيل، مع إمكانية الاعتراف بـ 30 نقطة استحقاق ضمن اللقب الأول.</p>
     </div>
 
     <div class="card">
@@ -76,7 +82,7 @@ input[type=text]{width:100%;padding:11px;font-size:16px;border:1.5px solid var(-
       <p style="font-size:14px"><b>رسوم التسجيل: 400 شيكل</b> — تُدفع مرة واحدة عند التسجيل، غير قابلة للإرجاع، وغير مشمولة في رسوم السنة التعليمية.</p>
       <table>
         <tr><th>البند</th><th>المبلغ</th><th>ملاحظات</th></tr>
-        <tr><td><b>المقدمة</b></td><td>3,000 شيكل</td><td>دفعة واحدة قبل بدء التعليم، وحتى 30.9 (بداية التعليم: 30.10).</td></tr>
+        <tr><td><b>المقدمة</b></td><td>3,000 شيكل</td><td>دفعة واحدة (بدون تقسيط) قبل بدء التعليم، وحتى تاريخ 30.9.</td></tr>
         <tr><td><b>باقي رسوم السنة</b></td><td>12,000 شيكل</td><td>عند بدء التعليم، بالتقسيط حتى 6 دفعات.</td></tr>
         <tr><td><b>المجموع</b></td><td><b>15,000 شيكل</b></td><td>رسوم السنة التعليمية الكاملة.</td></tr>
       </table>
@@ -88,8 +94,8 @@ input[type=text]{width:100%;padding:11px;font-size:16px;border:1.5px solid var(-
       <table>
         <tr><th>موعد الإلغاء</th><th>الترتيبات المالية</th></tr>
         <tr><td><b>في أي وقت</b></td><td>رسوم التسجيل (400 شيكل) غير قابلة للإرجاع.</td></tr>
-        <tr><td><b>حتى 14 يوم عمل قبل بدء التعليم</b></td><td>تُسترد المقدمة (3,000 شيكل) بالكامل.</td></tr>
-        <tr><td><b>خلال الأسبوع الأول من التعليم</b></td><td>يدفع الطالب 20% من رسوم السنة (من 15,000 شيكل)، ويُسترد الباقي.</td></tr>
+        <tr><td><b>حتى 14 يوم عمل قبل بدء التعليم</b></td><td>تُرد المقدمة (3,000 شيكل) بالكامل.</td></tr>
+        <tr><td><b>خلال الأسبوع الأول من التعليم</b></td><td>يدفع الطالب 20% من رسوم السنة (من 15,000 شيكل)، ويُرد له الباقي.</td></tr>
         <tr><td><b>خلال الفصل الأول</b></td><td>يدفع الطالب 60% من رسوم السنة.</td></tr>
         <tr><td><b>بعد الفصل الأول</b></td><td>لا يحق استرداد أي مبلغ.</td></tr>
       </table>
@@ -104,10 +110,7 @@ input[type=text]{width:100%;padding:11px;font-size:16px;border:1.5px solid var(-
     <div class="card">
       <h2>6. الإقرار والتوقيع</h2>
       <p style="font-size:14px">أقرّ أنا الموقّع/ة أدناه بأن جميع البيانات الواردة أعلاه صحيحة، وبأنني اطّلعت على تفاصيل البرنامج وشروط الدفع وسياسة الإلغاء الموضّحة أعلاه، وأوافق عليها بالكامل.</p>
-      <label style="font-weight:700;font-size:14px;display:block;margin-top:10px">الاسم الكامل:
-        <input type="text" id="signed-name" autocomplete="name" placeholder="اكتب اسمك الكامل هنا"/>
-      </label>
-      <div class="sig-label" style="margin-top:14px">التوقيع (ارسم توقيعك بإصبعك داخل الإطار):</div>
+      <div class="sig-label" style="margin-top:12px">التوقيع (ارسم توقيعك بإصبعك داخل الإطار):</div>
       <canvas id="sig-canvas"></canvas>
       <div class="sig-actions">
         <span class="note">التاريخ: <span id="today"></span></span>
@@ -151,11 +154,9 @@ async function load(){
       document.getElementById('already').classList.remove('hide');
       return;
     }
-    document.getElementById('f-name').textContent = (d.student.fname+' '+(d.student.lname||'')).trim() || '—';
-    document.getElementById('f-id').textContent = d.student.id_number || '—';
-    document.getElementById('f-phone').textContent = d.student.phone1 || '—';
-    const nameInput = document.getElementById('signed-name');
-    nameInput.value = (d.student.fname+' '+(d.student.lname||'')).trim();
+    document.getElementById('f-name').value = (d.student.fname+' '+(d.student.lname||'')).trim();
+    document.getElementById('f-id').value = d.student.id_number || '';
+    document.getElementById('f-phone').value = d.student.phone1 || '';
     document.getElementById('form-area').classList.remove('hide');
     initCanvas();
   }catch(e){
@@ -199,8 +200,12 @@ function clearSig(){
 async function submitSig(){
   const err = document.getElementById('err');
   err.textContent = '';
-  const name = document.getElementById('signed-name').value.trim();
-  if(name.length < 2){ err.textContent = '⚠️ يرجى كتابة الاسم الكامل'; return; }
+  const name = document.getElementById('f-name').value.trim();
+  const idNum = document.getElementById('f-id').value.replace(/\D/g,'');
+  const phone = document.getElementById('f-phone').value.replace(/\D/g,'');
+  if(name.length < 2){ err.textContent = '⚠️ يرجى كتابة الاسم الكامل في القسم 1'; return; }
+  if(idNum && idNum.length !== 9){ err.textContent = '⚠️ رقم الهوية يجب أن يتكون من 9 أرقام'; return; }
+  if(phone && (phone.length < 9 || phone.length > 10)){ err.textContent = '⚠️ يرجى إدخال رقم هاتف صحيح'; return; }
   if(!hasDrawn){ err.textContent = '⚠️ يرجى التوقيع داخل الإطار'; return; }
   if(!document.getElementById('agree').checked){ err.textContent = '⚠️ يجب الموافقة على الشروط'; return; }
   const btn = document.getElementById('submit-btn');
@@ -209,7 +214,7 @@ async function submitSig(){
     const r = await fetch('/api/sign/'+token, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signed_name: name, signature: canvas.toDataURL('image/png'), agree: true }),
+      body: JSON.stringify({ signature: canvas.toDataURL('image/png'), agree: true, details: { full_name: name, id_number: idNum, phone: phone } }),
     });
     const d = await r.json();
     if(!r.ok){ err.textContent = '⚠️ ' + (d.error || 'حدث خطأ، حاول مجددًا'); btn.disabled = false; btn.textContent = '✍️ توقيع وإرسال'; return; }

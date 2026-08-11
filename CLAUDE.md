@@ -70,6 +70,11 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
   (allows inline scripts + cdn.jsdelivr.net — needed, do not remove).
 
 ## OPEN
+- Owner must run in Supabase SQL Editor (v2 columns; platform degrades gracefully without them —
+  document snapshot skipped, fee flag errors):
+  ALTER TABLE registrations ADD COLUMN IF NOT EXISTS contract_text TEXT;
+  ALTER TABLE registrations ADD COLUMN IF NOT EXISTS student_details JSONB;
+  ALTER TABLE students ADD COLUMN IF NOT EXISTS reg_fee_paid BOOLEAN DEFAULT FALSE;
 - Owner must run in Supabase SQL Editor (signing platform inert until then; link creation errors gracefully):
   CREATE TABLE registrations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), student_id UUID,
   token TEXT UNIQUE NOT NULL, status TEXT DEFAULT 'pending', signed_name TEXT, signature_data TEXT,
@@ -111,6 +116,16 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Signing platform v2: (a) student can EDIT name/ID/phone on signing page (validated: ID 9 digits,
+  phone 9-10); corrections sync back to student record (fname=first word, lname=rest, id encrypted)
+  + audited as student-signature with diffs. (b) FULL document snapshot stored per signing
+  (src/utils/contractTemplate.js renders owner's updated Aug-2026 contract wording server-side into
+  registrations.contract_text) — CRM 📄 button opens printable RTL doc (contract text + signature img).
+  (c) Status flow: sign → students.status='signed' (new orange badge ✍️ חתם על חוזה; skipped if already
+  registered); CRM shows "ממתין לתשלום דמי הרשמה (400₪)" + button "✓ סמן ששולם" → sets
+  reg_fee_paid=true + status='registered' (green). register.html wording synced to owner's updated docx
+  (متعدّد التخصّصات; المقدمة note without 30.10; تُرد/ويُرد له). Version 2026-08-11.2.
+  NOTE: student update via mock requires .select().single() to execute.
 - E-signature platform (no payments; owner deferred payment integration): registrations table,
   src/routes/registrations.js (regRouter auth'd at /api/registrations: create link w/ crypto token,
   list, get signature, delete-unsigned; regPublicRouter rate-limited 30/15min at /api/sign/:token:

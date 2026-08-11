@@ -4,7 +4,9 @@ const rateLimit = require('express-rate-limit');
 const supabase = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { auditLog } = require('../middleware/audit');
-const { decryptStudent } = require('../utils/encryption');
+const { decryptStudent, encryptStudent } = require('../utils/encryption');
+const { renderContractText } = require('../utils/contractTemplate');
+const { diffFields } = require('../utils/auditDiff');
 
 // ── CRM side (authenticated) ──────────────────────────
 const regRouter = express.Router();
@@ -63,6 +65,21 @@ regRouter.get('/:id/signature', async (req, res) => {
   }
 });
 
+// GET /api/registrations/:id/document → the full signed document
+regRouter.get('/:id/document', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('contract_text, signature_data, signed_name, signed_at, status')
+      .eq('id', req.params.id)
+      .single();
+    if (error || !data) return res.status(404).json({ error: 'Not found' });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // DELETE /api/registrations/:id → cancel an unsigned link
 regRouter.delete('/:id', async (req, res) => {
   try {
@@ -103,29 +120,72 @@ regPublicRouter.get('/:token', async (req, res) => {
   }
 });
 
-// POST /api/sign/:token → submit the signature
+// POST /api/sign/:token → submit the signature (+ corrected details, + full document snapshot)
 regPublicRouter.post('/:token', async (req, res) => {
   try {
-    const { signed_name, signature, agree } = req.body;
+    const { signature, agree, details } = req.body;
+    const d = details || {};
+    const fullName = String(d.full_name || '').trim().substring(0, 120);
+    const idNum = String(d.id_number || '').replace(/\D/g, '');
+    const phone = String(d.phone || '').replace(/\D/g, '');
     if (!agree) return res.status(400).json({ error: 'يجب الموافقة على شروط الاتفاقية' });
-    if (!signed_name || String(signed_name).trim().length < 2) return res.status(400).json({ error: 'يرجى كتابة الاسم الكامل' });
+    if (fullName.length < 2) return res.status(400).json({ error: 'يرجى كتابة الاسم الكامل' });
+    if (idNum && idNum.length !== 9) return res.status(400).json({ error: 'رقم الهوية يجب أن يتكون من 9 أرقام' });
+    if (phone && (phone.length < 9 || phone.length > 10)) return res.status(400).json({ error: 'يرجى إدخال رقم هاتف صحيح' });
     if (!signature || !String(signature).startsWith('data:image/png;base64,') || String(signature).length < 2000) {
       return res.status(400).json({ error: 'يرجى التوقيع في المكان المخصص' });
     }
     if (String(signature).length > 300000) return res.status(400).json({ error: 'التوقيع كبير جدًا' });
+
     const { data: reg } = await supabase.from('registrations').select('*').eq('token', req.params.token).single();
     if (!reg) return res.status(404).json({ error: 'קישור לא תקין' });
     if (reg.status === 'signed') return res.status(400).json({ error: 'הטופס כבר נחתם' });
-    const { data, error } = await supabase.from('registrations').update({
+
+    const signedAt = new Date().toISOString();
+    const signedAtIL = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date());
+    const contractText = renderContractText({ full_name: fullName, id_number: idNum, phone, signed_name: fullName, signed_at_il: signedAtIL });
+
+    const baseUpdate = {
       status: 'signed',
-      signed_name: String(signed_name).trim().substring(0, 120),
+      signed_name: fullName,
       signature_data: signature,
-      signed_at: new Date().toISOString(),
-    }).eq('id', reg.id).select('id, status, signed_at').single();
-    if (error) throw error;
-    const { data: st } = await supabase.from('students').select('fname,lname').eq('id', reg.student_id).single();
-    await auditLog(null, 'student-signature', `Contract signed: ${((st?.fname||'')+' '+(st?.lname||'')).trim()}`, 'create', `Registration ${reg.id} · ${String(signed_name).trim().substring(0, 60)}`);
-    res.json({ success: true, signed_at: data.signed_at });
+      signed_at: signedAt,
+    };
+    // Try storing the full document; fall back gracefully if the columns don't exist yet
+    let upd = await supabase.from('registrations').update({ ...baseUpdate, contract_text: contractText, student_details: { full_name: fullName, id_number: idNum ? 'עודכן' : '', phone } }).eq('id', reg.id).select('id, signed_at').single();
+    if (upd.error) upd = await supabase.from('registrations').update(baseUpdate).eq('id', reg.id).select('id, signed_at').single();
+    if (upd.error) throw upd.error;
+
+    // Sync corrections back to the student record + move status to 'signed'
+    try {
+      const { data: stRaw } = await supabase.from('students').select('*').eq('id', reg.student_id).single();
+      if (stRaw) {
+        const st = decryptStudent(stRaw);
+        const parts = fullName.split(/\s+/);
+        const newFname = parts[0] || st.fname;
+        const newLname = parts.slice(1).join(' ');
+        const changes = {};
+        if (newFname && newFname !== (st.fname || '')) changes.fname = newFname;
+        if (newLname !== (st.lname || '')) changes.lname = newLname;
+        if (idNum && idNum !== (st.id_number || '')) changes.id_number = idNum;
+        if (phone && phone !== (st.phone1 || '')) changes.phone1 = phone;
+        if (st.status !== 'registered') changes.status = 'signed';
+        if (Object.keys(changes).length) {
+          const diff = diffFields(st, changes);
+          const enc = encryptStudent({ ...changes, updated_at: new Date().toISOString() });
+          let stUpd = await supabase.from('students').update(enc).eq('id', reg.student_id).select('id').single();
+          if (stUpd.error) {
+            console.error('[REG] student update error:', stUpd.error.message);
+            const { status, ...rest } = changes; // retry without status if the value is rejected
+            if (Object.keys(rest).length) await supabase.from('students').update(encryptStudent({ ...rest, updated_at: new Date().toISOString() })).eq('id', reg.student_id).select('id').single();
+          }
+          if (diff) await auditLog(null, 'student-signature', `Student updated own details: ${fullName}`, 'edit', diff);
+        }
+      }
+    } catch (e) { console.error('[REG] student sync error:', e.message); }
+
+    await auditLog(null, 'student-signature', `Contract signed: ${fullName}`, 'create', `Registration ${reg.id} · ${signedAtIL}`);
+    res.json({ success: true, signed_at: signedAt });
   } catch (err) {
     console.error('[REG] sign error:', err.message);
     res.status(500).json({ error: 'Server error' });
