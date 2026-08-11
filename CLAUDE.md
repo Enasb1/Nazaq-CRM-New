@@ -69,7 +69,12 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 - **Security**: login rate limit 10/15min; JWT 12h; 15-min inactivity auto-logout; bcrypt; helmet CSP
   (allows inline scripts + cdn.jsdelivr.net — needed, do not remove).
 
-## OPEN ITEMS (next conversation should start here)
+## OPEN
+- Owner must run in Supabase SQL Editor (signing platform inert until then; link creation errors gracefully):
+  CREATE TABLE registrations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), student_id UUID,
+  token TEXT UNIQUE NOT NULL, status TEXT DEFAULT 'pending', signed_name TEXT, signature_data TEXT,
+  signed_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());
+  ALTER TABLE registrations ENABLE ROW LEVEL SECURITY; ITEMS (next conversation should start here)
 00. **Run lead_type SQL** — `ALTER TABLE students ADD COLUMN lead_type TEXT DEFAULT 'student';`
     Until run, saveStudent silently retries without lead_type (badge won't persist).
 0. **Run meetings SQL** — meetings feature deployed; owner must create the table (SQL below).
@@ -106,6 +111,15 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- E-signature platform (no payments; owner deferred payment integration): registrations table,
+  src/routes/registrations.js (regRouter auth'd at /api/registrations: create link w/ crypto token,
+  list, get signature, delete-unsigned; regPublicRouter rate-limited 30/15min at /api/sign/:token:
+  GET contract data w/ decrypted student details, POST sign w/ validation: agree + name>=2 +
+  PNG base64 2KB-300KB). Signing page public/register.html served at /register/:token — Arabic RTL
+  branded contract, canvas finger-signature (devicePixelRatio scaled), success/already-signed/invalid
+  states. CRM: "📄 טופס הרשמה" section in student popup (renderRegsArea, loadStudentRegs, copy link,
+  wa.me share, view signature ✍️, delete unsigned). Both sign events audited (student-signature user).
+  Version stamp: 2026-08-11.1.
 - Rich audit details: field-level diffs on student/call edits (auditDiff.js, Hebrew labels, id_number
   value never logged), deletes log person name + datetime, meetings log student name + meeting time +
   summary snippet. NOTE: audit_log column is `detail` (singular) — panel + email read it.

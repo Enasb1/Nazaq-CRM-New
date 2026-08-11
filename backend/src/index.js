@@ -77,6 +77,7 @@ app.use(express.urlencoded({ extended: true }));
 // ── ROUTES ────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
+app.get('/register/:token', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'public', 'register.html')));
 app.use('/api/students', studentRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/doctors', doctorRoutes);
@@ -86,6 +87,9 @@ app.use('/api/config', configRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/welcome-stats', welcomeStatsRouter);
 app.use('/api/meetings', require('./routes/meetings'));
+const { regRouter, regPublicRouter } = require('./routes/registrations');
+app.use('/api/registrations', regRouter);
+app.use('/api/sign', regPublicRouter);
 require('./utils/dailyReport').start();
 
 // ── HEALTH CHECK ─────────────────────────────────────

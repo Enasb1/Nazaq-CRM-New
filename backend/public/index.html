@@ -314,7 +314,7 @@ tr:hover td{background:var(--yellow-pale);}
     </div>
     <button class="login-btn" onclick="doLogin()">כניסה</button>
     <div class="login-error" id="login-error"></div>
-    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-04.2</div>
+    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-11.1</div>
   </div>
 </div>
 
@@ -992,6 +992,83 @@ function nowILStr(){ // current time in Israel as YYYY-MM-DDTHH:MM (for datetime
   const g=t=>parts.find(x=>x.type===t).value;
   return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
 }
+let _detailRegs={studentId:null,items:null};
+let _viewSigId=null, _sigCache={};
+function regLink(tok){ return location.origin+'/register/'+tok; }
+function renderRegsArea(st){
+  const id=st.id;
+  if(_detailRegs.studentId!==id){ loadStudentRegs(id); return '<div style="font-size:13px;color:var(--text3)">⏳ טוען...</div>'; }
+  const items=_detailRegs.items||[];
+  if(!items.length) return '<div style="font-size:13px;color:var(--text3)">אין טופס — לחץ "צור קישור חתימה" ושלח לתלמיד</div>';
+  let out='<div style="display:flex;flex-direction:column;gap:10px">';
+  items.forEach(r=>{
+    out+='<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface)">';
+    if(r.status==='signed'){
+      const dt=r.signed_at?new Date(r.signed_at).toLocaleString('he-IL',{timeZone:'Asia/Jerusalem',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+      out+=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;padding:2px 10px;border-radius:6px;background:#E8F8EF;color:var(--green,#2E7D52);font-weight:700">✓ נחתם</span>
+        <span style="font-size:13px"><b>${r.signed_name||''}</b> · ${dt}</span>
+        <button class="act-btn" style="margin-inline-start:auto" onclick="toggleSignature('${r.id}')" title="הצג חתימה">✍️</button>
+      </div>`;
+      if(_viewSigId===r.id){
+        const sig=_sigCache[r.id];
+        out+=sig?`<div style="margin-top:10px;text-align:center;background:var(--bg);border-radius:8px;padding:8px"><img src="${sig}" style="max-width:100%;max-height:150px"/></div>`
+                :'<div style="font-size:12px;color:var(--text3);margin-top:8px">⏳ טוען חתימה...</div>';
+      }
+    }else{
+      const created=(r.created_at||'').substring(0,10);
+      out+=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;padding:2px 10px;border-radius:6px;background:var(--yellow-pale);font-weight:700">ממתין לחתימה</span>
+        <span style="font-size:12px;color:var(--text3)">נוצר ${created}</span>
+        <div style="margin-inline-start:auto;display:flex;gap:6px">
+          <button class="act-btn" onclick="copyRegLink('${r.token}')" title="העתק קישור">📋</button>
+          <button class="act-btn" onclick="waShareReg('${r.token}')" title="שלח בוואטסאפ">💬</button>
+          <button class="act-btn danger" onclick="deleteReg('${r.id}')" title="בטל קישור">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;word-break:break-all" dir="ltr">${regLink(r.token)}</div>`;
+    }
+    out+='</div>';
+  });
+  return out+'</div>';
+}
+async function loadStudentRegs(id){
+  try{ const r=await api('GET','/api/registrations?student_id='+id); _detailRegs={studentId:id,items:r.data||[]}; }
+  catch(e){ _detailRegs={studentId:id,items:[]}; }
+  if(typeof detailStudentId!=='undefined'&&detailStudentId===id) openDetail(id);
+}
+async function createSigningLink(){
+  try{
+    await api('POST','/api/registrations',{student_id:detailStudentId});
+    _detailRegs={studentId:null,items:null};
+    openDetail(detailStudentId);
+  }catch(e){ alert('שגיאה: '+(e.message||'לא ניתן ליצור קישור — ודא שטבלת registrations קיימת')); }
+}
+function copyRegLink(tok){
+  navigator.clipboard.writeText(regLink(tok)).then(()=>alert('✓ הקישור הועתק — הדבק אותו בוואטסאפ או בהודעה'));
+}
+function waShareReg(tok){
+  const st=students.find(x=>x.id===detailStudentId);
+  let phone=(st&&st.phone1||'').replace(/[^0-9]/g,'');
+  if(phone.startsWith('0')) phone='972'+phone.substring(1);
+  const text=encodeURIComponent('مرحبًا! هذا رابط استمارة التسجيل الخاصة بك في مركز الناصرة للتأهيل — برنامج «إكسبرس عالجامعة»:\n'+regLink(tok));
+  window.open('https://wa.me/'+phone+'?text='+text,'_blank');
+}
+async function toggleSignature(id){
+  if(_viewSigId===id){ _viewSigId=null; openDetail(detailStudentId); return; }
+  _viewSigId=id;
+  openDetail(detailStudentId);
+  if(!_sigCache[id]){
+    try{ const r=await api('GET','/api/registrations/'+id+'/signature'); _sigCache[id]=r.signature_data; }
+    catch(e){ _sigCache[id]=null; }
+    if(_viewSigId===id) openDetail(detailStudentId);
+  }
+}
+async function deleteReg(id){
+  if(!confirm('לבטל את קישור החתימה?')) return;
+  try{ await api('DELETE','/api/registrations/'+id); _detailRegs={studentId:null,items:null}; openDetail(detailStudentId); }
+  catch(e){ alert('שגיאה במחיקה'); }
+}
 function defaultCaller(){ return currentUser?(((currentUser.fname||'').trim())||currentUser.username||''):''; }
 function parentBadgeHTML(s){return s&&s.lead_type==='parent'?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF0FF;color:#5B5BD6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap" title="רשומת הורה — פונה עבור ילדו/ה">👨‍👩‍👦 הורה</span>`:'';}
 const DIRECTION_MAP=()=>({received:t('dir_received'),initiated:t('dir_initiated')});
@@ -1346,6 +1423,15 @@ function openDetail(id){
     html+=`</div>`;
   }
   html+=`</div>`;
+
+  // ── Registration contract section ──
+  html+=`<div style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+      <div class="section-title" style="font-size:14px;margin:0">📄 טופס הרשמה</div>
+      <button class="btn btn-secondary btn-sm" onclick="createSigningLink()" style="font-size:11px;padding:4px 10px">＋ צור קישור חתימה</button>
+    </div>
+    <div id="regs-area">${renderRegsArea(s)}</div>
+  </div>`;
 
   html+=`<div style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">

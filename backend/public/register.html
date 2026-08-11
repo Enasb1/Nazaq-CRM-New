@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>استمارة تسجيل — مركز الناصرة للتأهيل</title>
+<style>
+:root{--yellow:#EEBE50;--pale:#FFFBEE;--bg:#F9F7F0;--surface:#FFF;--border:#E8E0C8;--ink:#1D1D1B;--grey:#777;--red:#C0392B;--green:#2E7D52;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Dubai','Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:16px;line-height:1.6;}
+.wrap{max-width:640px;margin:0 auto;}
+.logo{display:block;width:76px;height:76px;margin:6px auto 10px;}
+h1{font-size:21px;text-align:center;}
+.center-name{text-align:center;font-weight:700;font-size:16px;margin-bottom:2px;}
+.band{background:var(--yellow);text-align:center;font-weight:700;font-size:14px;padding:7px;border-radius:8px;margin:10px 0 18px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+h2{font-size:16px;border-bottom:2px solid var(--yellow);padding-bottom:5px;margin-bottom:10px;}
+.field{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:14px;}
+.field:last-child{border-bottom:none;}
+.field b{white-space:nowrap;}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;}
+th{background:var(--yellow);padding:7px 8px;text-align:right;font-size:12px;}
+td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+ul{padding-right:18px;font-size:14px;}
+li{margin-bottom:5px;}
+.note{font-size:12px;color:var(--grey);margin-top:8px;}
+.sig-label{font-weight:700;font-size:14px;margin-bottom:6px;}
+#sig-canvas{width:100%;height:170px;border:2px dashed var(--border);border-radius:12px;background:#fff;touch-action:none;display:block;}
+.sig-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+.btn{border:none;border-radius:10px;padding:12px 18px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;}
+.btn-primary{background:var(--yellow);width:100%;margin-top:14px;}
+.btn-clear{background:var(--bg);border:1px solid var(--border);font-size:12px;padding:7px 12px;}
+input[type=text]{width:100%;padding:11px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;margin-top:5px;background:#fff;}
+.agree{display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:13px;}
+.agree input{width:20px;height:20px;margin-top:2px;flex-shrink:0;}
+.err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px;text-align:center;font-weight:700;}
+.done{text-align:center;padding:34px 14px;}
+.done .big{font-size:52px;}
+.hide{display:none;}
+.footer{text-align:center;color:var(--grey);font-size:11px;border-top:1px solid var(--yellow);padding:12px 0 4px;margin-top:8px;}
+#loading{text-align:center;padding:50px;color:var(--grey);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="logo" src="/icons/icon-192.png" alt="NazAQ"/>
+  <div class="center-name">مركز الناصرة للتأهيل</div>
+  <h1>استمارة تسجيل</h1>
+  <div class="band">برنامج «إكسبرس عالجامعة»</div>
+
+  <div id="loading">⏳ جاري التحميل...</div>
+  <div id="invalid" class="card hide" style="text-align:center;color:var(--red);font-weight:700">⚠️ الرابط غير صالح — يرجى التواصل مع المركز</div>
+
+  <div id="already" class="card done hide">
+    <div class="big">✅</div>
+    <h2 style="border:none">تم توقيع الاستمارة</h2>
+    <p style="font-size:14px;color:var(--grey)">وُقّعت هذه الاستمارة بتاريخ <span id="already-date"></span>.<br/>لأي استفسار يرجى التواصل مع المركز.</p>
+  </div>
+
+  <div id="form-area" class="hide">
+    <div class="card">
+      <h2>1. تفاصيل التسجيل</h2>
+      <div class="field"><b>اسم الطالب/ة:</b><span id="f-name"></span></div>
+      <div class="field"><b>رقم الهوية:</b><span id="f-id" dir="ltr"></span></div>
+      <div class="field"><b>رقم الهاتف:</b><span id="f-phone" dir="ltr"></span></div>
+      <div class="note">إذا كانت هناك أي معلومات غير صحيحة — يرجى التواصل مع المركز قبل التوقيع.</div>
+    </div>
+
+    <div class="card">
+      <h2>2. نظرة عامة عن البرنامج</h2>
+      <p style="font-size:14px">«إكسبرس عالجامعة» هو برنامج تأهيلي وأكاديمي يمتد على ثلاثة فصول تعليمية في مركز الناصرة للتأهيل، ويهدف إلى إعداد الطالب للقبول المباشر في جامعة حيفا للّقب متعدد المجالات (תואר רב תחומי)، بدون امتحان البسيخومتري وبدون امتحان ياعيل، مع إمكانية الاعتراف بـ 30 نقطة استحقاق ضمن اللقب الأول.</p>
+    </div>
+
+    <div class="card">
+      <h2>3. الرسوم وطريقة الدفع</h2>
+      <p style="font-size:14px"><b>رسوم التسجيل: 400 شيكل</b> — تُدفع مرة واحدة عند التسجيل، غير قابلة للإرجاع، وغير مشمولة في رسوم السنة التعليمية.</p>
+      <table>
+        <tr><th>البند</th><th>المبلغ</th><th>ملاحظات</th></tr>
+        <tr><td><b>المقدمة</b></td><td>3,000 شيكل</td><td>دفعة واحدة قبل بدء التعليم، وحتى 30.9 (بداية التعليم: 30.10).</td></tr>
+        <tr><td><b>باقي رسوم السنة</b></td><td>12,000 شيكل</td><td>عند بدء التعليم، بالتقسيط حتى 6 دفعات.</td></tr>
+        <tr><td><b>المجموع</b></td><td><b>15,000 شيكل</b></td><td>رسوم السنة التعليمية الكاملة.</td></tr>
+      </table>
+      <p style="font-size:13px"><b>وسائل الدفع:</b> شيكات / بطاقة ائتمان / تحويل بنكي.</p>
+    </div>
+
+    <div class="card">
+      <h2>4. سياسة الإلغاء والاسترداد</h2>
+      <table>
+        <tr><th>موعد الإلغاء</th><th>الترتيبات المالية</th></tr>
+        <tr><td><b>في أي وقت</b></td><td>رسوم التسجيل (400 شيكل) غير قابلة للإرجاع.</td></tr>
+        <tr><td><b>حتى 14 يوم عمل قبل بدء التعليم</b></td><td>تُسترد المقدمة (3,000 شيكل) بالكامل.</td></tr>
+        <tr><td><b>خلال الأسبوع الأول من التعليم</b></td><td>يدفع الطالب 20% من رسوم السنة (من 15,000 شيكل)، ويُسترد الباقي.</td></tr>
+        <tr><td><b>خلال الفصل الأول</b></td><td>يدفع الطالب 60% من رسوم السنة.</td></tr>
+        <tr><td><b>بعد الفصل الأول</b></td><td>لا يحق استرداد أي مبلغ.</td></tr>
+      </table>
+      <p class="note">يلتزم الطالب بتسديد الدفعة الأولى خلال 30 يومًا من تاريخ التسجيل، وبشرط أن يتم ذلك قبل 14 يوم عمل على الأقل من موعد افتتاح الدورة.</p>
+    </div>
+
+    <div class="card">
+      <h2>5. توضيح أكاديمي</h2>
+      <p style="font-size:14px">يعمل مركز الناصرة للتأهيل بشكل مستقل. يتم القبول في جامعة حيفا والاعتراف بالنقاط الأكاديمية وفق شروط الجامعة ومجلس التعليم العالي، وبشكل فردي لكل طالب.</p>
+    </div>
+
+    <div class="card">
+      <h2>6. الإقرار والتوقيع</h2>
+      <p style="font-size:14px">أقرّ أنا الموقّع/ة أدناه بأن جميع البيانات الواردة أعلاه صحيحة، وبأنني اطّلعت على تفاصيل البرنامج وشروط الدفع وسياسة الإلغاء الموضّحة أعلاه، وأوافق عليها بالكامل.</p>
+      <label style="font-weight:700;font-size:14px;display:block;margin-top:10px">الاسم الكامل:
+        <input type="text" id="signed-name" autocomplete="name" placeholder="اكتب اسمك الكامل هنا"/>
+      </label>
+      <div class="sig-label" style="margin-top:14px">التوقيع (ارسم توقيعك بإصبعك داخل الإطار):</div>
+      <canvas id="sig-canvas"></canvas>
+      <div class="sig-actions">
+        <span class="note">التاريخ: <span id="today"></span></span>
+        <button type="button" class="btn btn-clear" onclick="clearSig()">🗑 مسح التوقيع</button>
+      </div>
+      <div class="agree">
+        <input type="checkbox" id="agree"/>
+        <label for="agree">قرأت الاستمارة وأوافق على جميع الشروط الواردة فيها، بما في ذلك شروط الدفع وسياسة الإلغاء.</label>
+      </div>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitSig()">✍️ توقيع وإرسال</button>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <div id="success" class="card done hide">
+    <div class="big">🎉</div>
+    <h2 style="border:none">تم التسجيل بنجاح!</h2>
+    <p style="font-size:14px">شكرًا لك — تم حفظ الاستمارة الموقّعة لدى المركز.<br/>سنتواصل معك قريبًا بخصوص الخطوات التالية.<br/><b>نتمنى لك النجاح! 🌟</b></p>
+  </div>
+
+  <div class="footer">مركز الناصرة للتأهيل · برنامج «إكسبرس عالجامعة»</div>
+</div>
+
+<script>
+const token = location.pathname.split('/').pop();
+let hasDrawn = false;
+
+function nowIL(){
+  return new Intl.DateTimeFormat('ar', {timeZone:'Asia/Jerusalem', day:'2-digit', month:'2-digit', year:'numeric'}).format(new Date());
+}
+document.getElementById('today').textContent = nowIL();
+
+async function load(){
+  try{
+    const r = await fetch('/api/sign/'+token);
+    const d = await r.json();
+    document.getElementById('loading').classList.add('hide');
+    if(!r.ok){ document.getElementById('invalid').classList.remove('hide'); return; }
+    if(d.status === 'signed'){
+      document.getElementById('already-date').textContent = d.signed_at ? new Intl.DateTimeFormat('ar',{timeZone:'Asia/Jerusalem',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(d.signed_at)) : '';
+      document.getElementById('already').classList.remove('hide');
+      return;
+    }
+    document.getElementById('f-name').textContent = (d.student.fname+' '+(d.student.lname||'')).trim() || '—';
+    document.getElementById('f-id').textContent = d.student.id_number || '—';
+    document.getElementById('f-phone').textContent = d.student.phone1 || '—';
+    const nameInput = document.getElementById('signed-name');
+    nameInput.value = (d.student.fname+' '+(d.student.lname||'')).trim();
+    document.getElementById('form-area').classList.remove('hide');
+    initCanvas();
+  }catch(e){
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('invalid').classList.remove('hide');
+  }
+}
+
+let canvas, ctx;
+function initCanvas(){
+  canvas = document.getElementById('sig-canvas');
+  const scale = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * scale;
+  canvas.height = 170 * scale;
+  ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1D1D1B';
+  let drawing = false, last = null;
+  const pos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); drawing = true; last = pos(e); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', (e) => {
+    if(!drawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p; hasDrawn = true;
+  });
+  const stop = () => { drawing = false; };
+  canvas.addEventListener('pointerup', stop);
+  canvas.addEventListener('pointercancel', stop);
+}
+function clearSig(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasDrawn = false;
+}
+
+async function submitSig(){
+  const err = document.getElementById('err');
+  err.textContent = '';
+  const name = document.getElementById('signed-name').value.trim();
+  if(name.length < 2){ err.textContent = '⚠️ يرجى كتابة الاسم الكامل'; return; }
+  if(!hasDrawn){ err.textContent = '⚠️ يرجى التوقيع داخل الإطار'; return; }
+  if(!document.getElementById('agree').checked){ err.textContent = '⚠️ يجب الموافقة على الشروط'; return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '⏳ جاري الإرسال...';
+  try{
+    const r = await fetch('/api/sign/'+token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signed_name: name, signature: canvas.toDataURL('image/png'), agree: true }),
+    });
+    const d = await r.json();
+    if(!r.ok){ err.textContent = '⚠️ ' + (d.error || 'حدث خطأ، حاول مجددًا'); btn.disabled = false; btn.textContent = '✍️ توقيع وإرسال'; return; }
+    document.getElementById('form-area').classList.add('hide');
+    document.getElementById('success').classList.remove('hide');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }catch(e){
+    err.textContent = '⚠️ مشكلة في الاتصال — حاول مجددًا';
+    btn.disabled = false; btn.textContent = '✍️ توقيع وإرسال';
+  }
+}
+load();
+</script>
+</body>
+</html>
