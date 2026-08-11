@@ -5,7 +5,7 @@ const supabase = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { auditLog } = require('../middleware/audit');
 const { decryptStudent, encryptStudent } = require('../utils/encryption');
-const { renderContractText } = require('../utils/contractTemplate');
+const { renderContractHtml } = require('../utils/contractTemplate');
 const { diffFields } = require('../utils/auditDiff');
 
 // ── CRM side (authenticated) ──────────────────────────
@@ -143,7 +143,7 @@ regPublicRouter.post('/:token', async (req, res) => {
 
     const signedAt = new Date().toISOString();
     const signedAtIL = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date());
-    const contractText = renderContractText({ full_name: fullName, id_number: idNum, phone, signed_name: fullName, signed_at_il: signedAtIL });
+    const contractText = renderContractHtml({ full_name: fullName, id_number: idNum, phone, signed_name: fullName, signed_at_il: signedAtIL });
 
     const baseUpdate = {
       status: 'signed',

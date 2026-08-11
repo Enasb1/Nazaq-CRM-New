@@ -315,7 +315,7 @@ tr:hover td{background:var(--yellow-pale);}
     </div>
     <button class="login-btn" onclick="doLogin()">כניסה</button>
     <div class="login-error" id="login-error"></div>
-    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-11.2</div>
+    <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:14px">גרסה 2026-08-11.3</div>
   </div>
 </div>
 
@@ -803,7 +803,9 @@ function pendingCount(){return calls.filter(c=>c.followup==='yes'&&c.followup_da
 // ══════════════════════════════════════════
 // STORAGE — now hits real API
 // ══════════════════════════════════════════
+let _lastLoadTs=0;
 async function loadData(){
+  _lastLoadTs=Date.now();
   try{
     showLoadingOverlay(true);
     const [sData, stData, cData, cfg, mData] = await Promise.all([
@@ -993,6 +995,11 @@ function nowILStr(){ // current time in Israel as YYYY-MM-DDTHH:MM (for datetime
   const g=t=>parts.find(x=>x.type===t).value;
   return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
 }
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='visible'&&authToken&&Date.now()-_lastLoadTs>60000){
+    try{ await loadData(); renderAll(); }catch(e){}
+  }
+});
 let _detailRegs={studentId:null,items:null};
 let _viewSigId=null, _sigCache={};
 function regLink(tok){ return location.origin+'/register/'+tok; }
@@ -1044,9 +1051,32 @@ function renderRegsArea(st){
   });
   return out+'</div>';
 }
+let _regPollTimer=null;
+function ensureRegPolling(){
+  if(_regPollTimer) return;
+  _regPollTimer=setInterval(async()=>{
+    const modal=document.getElementById('modal-detail');
+    const open=modal&&modal.classList.contains('open');
+    if(!open||!detailStudentId||!(_detailRegs.items||[]).some(x=>x.status!=='signed')){
+      clearInterval(_regPollTimer); _regPollTimer=null; return;
+    }
+    try{
+      const r=await api('GET','/api/registrations?student_id='+detailStudentId);
+      const items=r.data||[];
+      if(JSON.stringify(items)!==JSON.stringify(_detailRegs.items||[])){
+        const wasSigned=(_detailRegs.items||[]).some(x=>x.status==='signed');
+        const nowSigned=items.some(x=>x.status==='signed');
+        _detailRegs={studentId:detailStudentId,items};
+        if(nowSigned&&!wasSigned) await loadData(); // pull the new 'signed' status into the table
+        openDetail(detailStudentId);
+      }
+    }catch(e){}
+  },8000);
+}
 async function loadStudentRegs(id){
   try{ const r=await api('GET','/api/registrations?student_id='+id); _detailRegs={studentId:id,items:r.data||[]}; }
   catch(e){ _detailRegs={studentId:id,items:[]}; }
+  if((_detailRegs.items||[]).some(x=>x.status!=='signed')) ensureRegPolling();
   if(typeof detailStudentId!=='undefined'&&detailStudentId===id) openDetail(id);
 }
 async function createSigningLink(){
@@ -1087,19 +1117,25 @@ async function markRegFeePaid(){
 async function openRegDocument(id){
   try{
     const d=await api('GET','/api/registrations/'+id+'/document');
-    const esc=(x)=>String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const w=window.open('','_blank');
-    w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>استمارة تسجيل موقّعة</title>
-      <style>body{font-family:'Dubai','Segoe UI',sans-serif;max-width:700px;margin:0 auto;padding:24px;color:#1D1D1B;line-height:1.7}
-      pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px}
-      .sig{border-top:2px solid #EEBE50;margin-top:16px;padding-top:12px;text-align:center}
-      .sig img{max-height:130px;border:1px solid #E8E0C8;border-radius:8px;padding:6px}
-      .noprint{text-align:center;margin-bottom:14px}@media print{.noprint{display:none}}</style></head><body>
-      <div class="noprint"><button onclick="window.print()" style="padding:10px 22px;font-size:14px;font-weight:700;background:#EEBE50;border:none;border-radius:8px;cursor:pointer">🖨 הדפס / שמור PDF</button></div>
-      ${d.contract_text?`<pre>${esc(d.contract_text)}</pre>`:'<p>המסמך המלא לא נשמר עבור חתימה זו (נחתמה לפני העדכון) — החתימה עצמה מוצגת מטה.</p>'}
-      <div class="sig"><div style="font-weight:700;margin-bottom:6px">التوقيع الإلكتروني — ${esc(d.signed_name)}</div>
-      ${d.signature_data?`<img src="${d.signature_data}"/>`:''}</div>
-      </body></html>`);
+    const raw=d.contract_text||'';
+    if(raw.trim().startsWith('<')){
+      // styled snapshot: same design the student signed on
+      w.document.write(raw.replaceAll('__ORIGIN__',location.origin).replaceAll('__SIGNATURE_IMG__',d.signature_data||''));
+    }else{
+      const esc=(x)=>String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>استمارة تسجيل موقّعة</title>
+        <style>body{font-family:'Dubai','Segoe UI',sans-serif;max-width:700px;margin:0 auto;padding:24px;color:#1D1D1B;line-height:1.7}
+        pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px}
+        .sig{border-top:2px solid #EEBE50;margin-top:16px;padding-top:12px;text-align:center}
+        .sig img{max-height:130px;border:1px solid #E8E0C8;border-radius:8px;padding:6px}
+        .noprint{text-align:center;margin-bottom:14px}@media print{.noprint{display:none}}</style></head><body>
+        <div class="noprint"><button onclick="window.print()" style="padding:10px 22px;font-size:14px;font-weight:700;background:#EEBE50;border:none;border-radius:8px;cursor:pointer">🖨 הדפס / שמור PDF</button></div>
+        ${raw?`<pre>${esc(raw)}</pre>`:'<p>המסמך המלא לא נשמר עבור חתימה זו (נחתמה לפני העדכון) — החתימה עצמה מוצגת מטה.</p>'}
+        <div class="sig"><div style="font-weight:700;margin-bottom:6px">التوقيع الإلكتروني — ${esc(d.signed_name)}</div>
+        ${d.signature_data?`<img src="${d.signature_data}"/>`:''}</div>
+        </body></html>`);
+    }
     w.document.close();
   }catch(e){ alert('שגיאה בטעינת המסמך'); }
 }

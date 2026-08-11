@@ -116,6 +116,14 @@ Manages: student leads + calls + semesters + meetings calendar, a separate Docto
 3. ~~Blue doctor status~~ — DEFERRED (owner said July 2026: not interested in the doctor page for now; don't ask again unless owner raises it).
 
 ## DONE (July 2026 session)
+- Signing v3: (a) contract snapshot now stored as STYLED HTML (renderContractHtml in
+  contractTemplate.js — same design as signing page: logo, yellow bands, fee+cancellation tables,
+  filled details, sig box; placeholders __ORIGIN__/__SIGNATURE_IMG__ replaced at view time in
+  openRegDocument; legacy plain-text snapshots still render via pre fallback). (b) CRM auto-updates:
+  while student popup is open with a pending signature, polls /api/registrations every 8s
+  (ensureRegPolling; stops when popup closes or all signed; on new signature → loadData() +
+  re-render popup). (c) visibilitychange listener: returning to the tab after >60s silently reloads
+  data (no manual refresh/relogin). Version 2026-08-11.3.
 - Signing platform v2: (a) student can EDIT name/ID/phone on signing page (validated: ID 9 digits,
   phone 9-10); corrections sync back to student record (fname=first word, lname=rest, id encrypted)
   + audited as student-signature with diffs. (b) FULL document snapshot stored per signing
