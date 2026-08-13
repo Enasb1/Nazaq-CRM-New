@@ -7,6 +7,7 @@ const { auditLog } = require('../middleware/audit');
 const { decryptStudent, encryptStudent } = require('../utils/encryption');
 const { renderContractHtml } = require('../utils/contractTemplate');
 const { diffFields } = require('../utils/auditDiff');
+const { sendEmail } = require('../utils/mailer');
 
 // ── CRM side (authenticated) ──────────────────────────
 const regRouter = express.Router();
@@ -195,6 +196,34 @@ regPublicRouter.post('/:token', async (req, res) => {
     } catch (e) { console.error('[REG] student sync error:', e.message); }
 
     await auditLog(null, 'student-signature', `Contract signed: ${fullName}`, 'create', `Registration ${reg.id} · ${signedAtIL}`);
+
+    // Email the signed contract to the company inbox (inert until RESEND_API_KEY + CONTRACT_EMAIL are set)
+    const contractEmail = process.env.CONTRACT_EMAIL || process.env.REPORT_EMAIL;
+    if (process.env.RESEND_API_KEY && contractEmail) {
+      const filledHtml = contractText
+        .replaceAll('__ORIGIN__', 'https://nazaq.org')
+        .replaceAll('__SIGNATURE_IMG__', signature);
+      const esc = (x) => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      sendEmail({
+        to: contractEmail,
+        subject: `✍️ חוזה נחתם — ${fullName}`,
+        html: `<div dir="rtl" style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1A1A1A">
+          <h2 style="background:#EEBE50;padding:12px 16px;border-radius:10px">✍️ נחתם טופס הרשמה חדש</h2>
+          <table style="font-size:14px;border-collapse:collapse">
+            <tr><td style="padding:4px 8px;font-weight:700">שם:</td><td style="padding:4px 8px">${esc(fullName)}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:700">ת.ז:</td><td style="padding:4px 8px" dir="ltr">${esc(idNum) || '—'}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:700">טלפון:</td><td style="padding:4px 8px" dir="ltr">${esc(phone) || '—'}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:700">מועד חתימה:</td><td style="padding:4px 8px">${esc(signedAtIL)}</td></tr>
+          </table>
+          <p style="color:#555;font-size:13px">המסמך החתום המלא מצורף כקובץ (נפתח בדפדפן). הוא שמור גם במערכת ה-CRM בכרטיס התלמיד.</p>
+        </div>`,
+        attachments: [{
+          filename: `contract-signed-${fullName.replace(/[^\p{L}\p{N} _-]/gu, '').substring(0, 40) || 'student'}.html`,
+          content: Buffer.from(filledHtml, 'utf8').toString('base64'),
+        }],
+      }).catch(() => {});
+    }
+
     res.json({ success: true, signed_at: signedAt });
   } catch (err) {
     console.error('[REG] sign error:', err.message);
